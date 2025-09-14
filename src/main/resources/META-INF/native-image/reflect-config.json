@@ -1,0 +1,26 @@
+[
+  {
+    "name": "net.dv8tion.jda",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "unsafeAllocated": true
+  },
+  {
+    "name": "net.dv8tion.jda.api",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "unsafeAllocated": true
+  },
+  {
+    "name": "net.dv8tion.jda.internal",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true,
+    "allDeclaredClasses": true,
+    "unsafeAllocated": true
+  }
+]
