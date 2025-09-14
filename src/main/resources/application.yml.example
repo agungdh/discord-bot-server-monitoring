@@ -1,3 +1,6 @@
 spring:
   application:
     name: discord-bot-server-monitoring
+discord:
+  token:
+  guild-id:
