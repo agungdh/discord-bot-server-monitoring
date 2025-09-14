@@ -1,10 +1,7 @@
 package id.my.agungdh.discordbotservermonitoring.listener;
 
 import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.MetricsDTO;
-import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.StorageDTO;
-import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.NetworkDTO;
 import id.my.agungdh.discordbotservermonitoring.service.MetricsService;
-
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -15,7 +12,6 @@ import java.awt.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 @Component
@@ -26,6 +22,74 @@ public class SlashCommandListener extends ListenerAdapter {
     public SlashCommandListener(net.dv8tion.jda.api.JDA jda, MetricsService metricsService) {
         this.metricsService = metricsService;
         jda.addEventListener(this);
+    }
+
+    private static String codeBlock(String s) {
+        return "```" + s + "```";
+    }
+
+    private static String safe(String s) {
+        return s == null ? "" : s;
+    }
+
+    // potong string panjang jadi beberapa bagian
+    private static List<String> chunkString(String s, int maxLen) {
+        List<String> parts = new ArrayList<>();
+        String remaining = s;
+        while (remaining.length() > maxLen) {
+            int cut = maxLen;
+            // coba potong di newline terdekat ke belakang biar rapi
+            int nl = remaining.lastIndexOf('\n', maxLen);
+            if (nl > 0) cut = nl;
+            parts.add(remaining.substring(0, cut));
+            remaining = remaining.substring(cut);
+        }
+        if (!remaining.isBlank()) parts.add(remaining);
+        return parts;
+    }
+
+    private static String humanBytes(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        double v = bytes;
+        String[] u = {"KB", "MB", "GB", "TB", "PB"};
+        int i = -1;
+        while (v >= 1024 && i < u.length - 1) {
+            v /= 1024;
+            i++;
+        }
+        return String.format("%.2f %s", v, u[i]);
+    }
+
+    private static String progressBar(double percent) {
+        int filled = (int) Math.round(Math.max(0, Math.min(100, percent)) / 10.0);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 10; i++) sb.append(i < filled ? "█" : "░");
+        return sb.toString();
+    }
+
+    private static String humanUptime(long seconds) {
+        Duration d = Duration.ofSeconds(Math.max(0, seconds));
+        long days = d.toDays();
+        d = d.minusDays(days);
+        long hours = d.toHours();
+        d = d.minusHours(hours);
+        long mins = d.toMinutes();
+        StringBuilder sb = new StringBuilder();
+        if (days > 0) sb.append(days).append("d ");
+        if (hours > 0) sb.append(hours).append("h ");
+        sb.append(mins).append("m");
+        return sb.toString();
+    }
+
+    private static String gaugeEmoji(double percent) {
+        if (percent >= 90) return "🟥";
+        if (percent >= 75) return "🟧";
+        if (percent >= 50) return "🟨";
+        return "🟩";
+    }
+
+    private static String round2(double v) {
+        return String.format("%.2f", v);
     }
 
     @Override
@@ -140,68 +204,5 @@ public class SlashCommandListener extends ListenerAdapter {
 
             default -> event.reply("Unknown command 🤔").setEphemeral(true).queue();
         }
-    }
-
-    private static String codeBlock(String s) { return "```" + s + "```"; }
-    private static String safe(String s) { return s == null ? "" : s; }
-
-    // potong string panjang jadi beberapa bagian
-    private static List<String> chunkString(String s, int maxLen) {
-        List<String> parts = new ArrayList<>();
-        String remaining = s;
-        while (remaining.length() > maxLen) {
-            int cut = maxLen;
-            // coba potong di newline terdekat ke belakang biar rapi
-            int nl = remaining.lastIndexOf('\n', maxLen);
-            if (nl > 0) cut = nl;
-            parts.add(remaining.substring(0, cut));
-            remaining = remaining.substring(cut);
-        }
-        if (!remaining.isBlank()) parts.add(remaining);
-        return parts;
-    }
-
-    private static String humanBytes(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        double v = bytes;
-        String[] u = {"KB", "MB", "GB", "TB", "PB"};
-        int i = -1;
-        while (v >= 1024 && i < u.length - 1) {
-            v /= 1024;
-            i++;
-        }
-        return String.format("%.2f %s", v, u[i]);
-    }
-
-    private static String progressBar(double percent) {
-        int filled = (int) Math.round(Math.max(0, Math.min(100, percent)) / 10.0);
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 10; i++) sb.append(i < filled ? "█" : "░");
-        return sb.toString();
-    }
-
-    private static String humanUptime(long seconds) {
-        Duration d = Duration.ofSeconds(Math.max(0, seconds));
-        long days = d.toDays();
-        d = d.minusDays(days);
-        long hours = d.toHours();
-        d = d.minusHours(hours);
-        long mins = d.toMinutes();
-        StringBuilder sb = new StringBuilder();
-        if (days > 0) sb.append(days).append("d ");
-        if (hours > 0) sb.append(hours).append("h ");
-        sb.append(mins).append("m");
-        return sb.toString();
-    }
-
-    private static String gaugeEmoji(double percent) {
-        if (percent >= 90) return "🟥";
-        if (percent >= 75) return "🟧";
-        if (percent >= 50) return "🟨";
-        return "🟩";
-    }
-
-    private static String round2(double v) {
-        return String.format("%.2f", v);
     }
 }
