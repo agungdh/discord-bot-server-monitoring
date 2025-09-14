@@ -27,5 +27,19 @@
   { "name": "[Lnet.dv8tion.jda.api.entities.channel.concrete.Category;", "unsafeAllocated": true },
 
   { "name": "net.dv8tion.jda.api.managers.AudioManager", "unsafeAllocated": true },
-  { "name": "[Lnet.dv8tion.jda.api.managers.AudioManager;", "unsafeAllocated": true }
+  { "name": "[Lnet.dv8tion.jda.api.managers.AudioManager;", "unsafeAllocated": true },
+
+  {
+    "name": "net.dv8tion.jda.api.hooks.ListenerAdapter",
+    "methods": [
+      {
+        "name": "onStatusChange",
+        "parameterTypes": ["net.dv8tion.jda.api.events.StatusChangeEvent"]
+      },
+      {
+        "name": "onException",
+        "parameterTypes": ["net.dv8tion.jda.api.events.ExceptionEvent"]
+      }
+    ]
+  }
 ]
