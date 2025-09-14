@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Component
 public class SlashCommandListener extends ListenerAdapter {
@@ -24,21 +25,119 @@ public class SlashCommandListener extends ListenerAdapter {
         jda.addEventListener(this);
     }
 
-    private static String codeBlock(String s) {
-        return "```" + s + "```";
+    @Override
+    public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
+        switch (event.getName()) {
+            case "ping" -> {
+                long start = System.currentTimeMillis();
+                event.reply("⏱️ Pinging...").setEphemeral(true).queue(hook -> {
+                    long latency = System.currentTimeMillis() - start;
+                    hook.editOriginal("🏓 Pong! Latency ~ **" + latency + " ms** (gateway: " + event.getJDA().getGatewayPing() + " ms)").queue();
+                });
+            }
+
+            case "echo" -> event.reply(event.getOption("text").getAsString()).queue();
+
+            case "health" -> {
+                event.deferReply().queue();
+
+                MetricsDTO m = metricsService.snapshot(true);
+
+                // 1) Summary embed (ringkas)
+                EmbedBuilder eb = new EmbedBuilder()
+                        .setTitle("📊 Server Health")
+                        .setColor(new Color(88, 101, 242))
+                        .setTimestamp(Instant.now())
+                        .setFooter("host: " + m.hostname() + " • uptime: " + humanUptime(m.uptimeSeconds()));
+                eb.addField("OS", m.os(), true);
+                eb.addField("Time", m.timestamp().toString(), true);
+                eb.addBlankField(true);
+
+                String cpuBar = codeBlock(progressBar(m.cpu().cpuUsage()) + " " +
+                        round2(m.cpu().cpuUsage()) + "%");
+                String cpuInfo = "**Model:** " + safe(m.cpu().model()) + "\n" +
+                        "**Cores:** " + m.cpu().physicalCores() + "p / " + m.cpu().logicalCores() + "l\n" +
+                        "**Load1m:** " + (m.cpu().systemLoad1m() < 0 ? "N/A" : m.cpu().systemLoad1m()) + "\n" +
+                        "**Temp:** " + (m.cpu().temperatureC() == null ? "N/A" : (m.cpu().temperatureC() + "°C"));
+                eb.addField("CPU " + gaugeEmoji(m.cpu().cpuUsage()), cpuBar + "\n" + cpuInfo, false);
+
+                String memBar = codeBlock(progressBar(m.memory().usedPercent()) + " " +
+                        round2(m.memory().usedPercent()) + "% (" +
+                        humanBytes(m.memory().usedBytes()) + " / " +
+                        humanBytes(m.memory().totalBytes()) + ")");
+                eb.addField("Memory", memBar, false);
+
+                if (m.swap().totalBytes() > 0) {
+                    String swapBar = codeBlock(progressBar(m.swap().usedPercent()) + " " +
+                            round2(m.swap().usedPercent()) + "% (" +
+                            humanBytes(m.swap().usedBytes()) + " / " +
+                            humanBytes(m.swap().totalBytes()) + ")");
+                    eb.addField("Swap", swapBar, false);
+                }
+
+                // 2) Siapkan semua halaman disk & network (dipotong 1800 char biar aman)
+                List<String> diskParts = new ArrayList<>();
+                {
+                    StringBuilder all = new StringBuilder("**Storage (all)**\n\n");
+                    int i = 1;
+                    for (var d : m.storage()) {
+                        all.append(String.format(
+                                "%d) `%s` • %s\n%s %s%%  (%s / %s)\n\n",
+                                i++,
+                                safe(d.name()), safe(d.type()),
+                                progressBar(d.usedPercent()),
+                                round2(d.usedPercent()),
+                                humanBytes(d.totalBytes() - d.usableBytes()),
+                                humanBytes(d.totalBytes())
+                        ));
+                    }
+                    diskParts = chunkString(all.toString(), 1800);
+                }
+
+                List<String> netParts = new ArrayList<>();
+                {
+                    StringBuilder all = new StringBuilder("**Network Interfaces (all)**\n\n");
+                    int i = 1;
+                    for (var nif : m.networks()) {
+                        String ipv4 = (nif.ipv4() == null || nif.ipv4().isBlank()) ? "-" : nif.ipv4();
+                        String ipv6 = (nif.ipv6() == null || nif.ipv6().isBlank()) ? "-" : nif.ipv6();
+                        all.append(String.format(
+                                "%d) `%s` • %s\nIPv4: %s | IPv6: %s\n↓ %s • ↑ %s\n\n",
+                                i++,
+                                safe(nif.name()), safe(nif.mac()),
+                                ipv4, ipv6,
+                                humanBytes(nif.bytesRecv()),
+                                humanBytes(nif.bytesSent())
+                        ));
+                    }
+                    netParts = chunkString(all.toString(), 1800);
+                }
+
+                // 3) Kirim BERURUTAN: summary -> disk parts -> net parts
+                List<String> finalDiskParts = diskParts;
+                List<String> finalNetParts = netParts;
+                event.getHook().editOriginalEmbeds(eb.build()).queue(v -> {
+                    sendSequentially(event.getHook(), toCodeBlocks(finalDiskParts))
+                            .thenCompose(ignored -> sendSequentially(event.getHook(), toCodeBlocks(finalNetParts)))
+                            .exceptionally(ex -> {
+                                event.getHook().sendMessage("⚠️ Gagal kirim data: " + ex.getMessage()).queue();
+                                return null;
+                            });
+                });
+            }
+
+            default -> event.reply("Unknown command 🤔").setEphemeral(true).queue();
+        }
     }
 
-    private static String safe(String s) {
-        return s == null ? "" : s;
-    }
+    private static String codeBlock(String s) { return "```" + s + "```"; }
+    private static String safe(String s) { return s == null ? "" : s; }
 
-    // potong string panjang jadi beberapa bagian
     private static List<String> chunkString(String s, int maxLen) {
         List<String> parts = new ArrayList<>();
         String remaining = s;
         while (remaining.length() > maxLen) {
             int cut = maxLen;
-            // coba potong di newline terdekat ke belakang biar rapi
             int nl = remaining.lastIndexOf('\n', maxLen);
             if (nl > 0) cut = nl;
             parts.add(remaining.substring(0, cut));
@@ -47,6 +146,33 @@ public class SlashCommandListener extends ListenerAdapter {
         if (!remaining.isBlank()) parts.add(remaining);
         return parts;
     }
+
+    private static List<String> toCodeBlocks(List<String> rawParts) {
+        List<String> blocks = new ArrayList<>(rawParts.size());
+        for (String p : rawParts) blocks.add(codeBlock(p));
+        return blocks;
+    }
+
+    // ======== KUNCI URUTAN: kirim berantai, bukan paralel ========
+    private static CompletableFuture<Void> sendSequentially(
+            net.dv8tion.jda.api.interactions.InteractionHook hook,
+            List<String> messages
+    ) {
+        CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+        for (String msg : messages) {
+            chain = chain.thenCompose(ignored ->
+                    toCF(hook.sendMessage(msg)).thenApply(x -> null) // ubah Message → Void
+            );
+        }
+        return chain;
+    }
+
+    private static <T> java.util.concurrent.CompletableFuture<T> toCF(net.dv8tion.jda.api.requests.RestAction<T> ra) {
+        var cf = new java.util.concurrent.CompletableFuture<T>();
+        ra.queue(cf::complete, cf::completeExceptionally);
+        return cf;
+    }
+
 
     private static String humanBytes(long bytes) {
         if (bytes < 1024) return bytes + " B";
@@ -92,117 +218,5 @@ public class SlashCommandListener extends ListenerAdapter {
         return String.format("%.2f", v);
     }
 
-    @Override
-    public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
-        switch (event.getName()) {
-            case "ping" -> {
-                long start = System.currentTimeMillis();
-                event.reply("⏱️ Pinging...").setEphemeral(true).queue(hook -> {
-                    long latency = System.currentTimeMillis() - start;
-                    hook.editOriginal("🏓 Pong! Latency ~ **" + latency + " ms** (gateway: " + event.getJDA().getGatewayPing() + " ms)").queue();
-                });
-            }
 
-            case "echo" -> event.reply(event.getOption("text").getAsString()).queue();
-
-            case "health" -> {
-                event.deferReply().queue();
-
-                MetricsDTO m = metricsService.snapshot(true);
-
-                // ===== summary embed (tetap seperti sebelumnya, ringkas) =====
-                EmbedBuilder eb = new EmbedBuilder()
-                        .setTitle("📊 Server Health")
-                        .setColor(new Color(88, 101, 242))
-                        .setTimestamp(Instant.now())
-                        .setFooter("host: " + m.hostname() + " • uptime: " + humanUptime(m.uptimeSeconds()));
-                eb.addField("OS", m.os(), true);
-                eb.addField("Time", m.timestamp().toString(), true);
-                eb.addBlankField(true);
-
-                String cpuBar = codeBlock(
-                        progressBar(m.cpu().cpuUsage()) + " " +
-                                round2(m.cpu().cpuUsage()) + "%"
-                );
-                String cpuInfo =
-                        "**Model:** " + safe(m.cpu().model()) + "\n" +
-                                "**Cores:** " + m.cpu().physicalCores() + "p / " + m.cpu().logicalCores() + "l\n" +
-                                "**Load1m:** " + (m.cpu().systemLoad1m() < 0 ? "N/A" : m.cpu().systemLoad1m()) + "\n" +
-                                "**Temp:** " + (m.cpu().temperatureC() == null ? "N/A" : (m.cpu().temperatureC() + "°C"));
-                eb.addField("CPU " + gaugeEmoji(m.cpu().cpuUsage()), cpuBar + "\n" + cpuInfo, false);
-
-                String memBar = codeBlock(
-                        progressBar(m.memory().usedPercent()) + " " +
-                                round2(m.memory().usedPercent()) + "% (" +
-                                humanBytes(m.memory().usedBytes()) + " / " +
-                                humanBytes(m.memory().totalBytes()) + ")"
-                );
-                eb.addField("Memory", memBar, false);
-
-                if (m.swap().totalBytes() > 0) {
-                    String swapBar = codeBlock(
-                            progressBar(m.swap().usedPercent()) + " " +
-                                    round2(m.swap().usedPercent()) + "% (" +
-                                    humanBytes(m.swap().usedBytes()) + " / " +
-                                    humanBytes(m.swap().totalBytes()) + ")"
-                    );
-                    eb.addField("Swap", swapBar, false);
-                }
-
-                event.getHook().editOriginalEmbeds(eb.build()).queue();
-
-                // ===== detail DISKS: kirim semua, dipaginasi =====
-                if (m.storage() != null && !m.storage().isEmpty()) {
-                    StringBuilder diskList = new StringBuilder();
-                    diskList.append("**Storage (all)**\n");
-                    int idx = 1;
-                    for (var d : m.storage()) {
-                        String line = String.format(
-                                "%d) `%s` • %s\n%s %s%%  (%s / %s)\n\n",
-                                idx++,
-                                safe(d.name()), safe(d.type()),
-                                progressBar(d.usedPercent()),
-                                round2(d.usedPercent()),
-                                humanBytes(d.totalBytes() - d.usableBytes()),
-                                humanBytes(d.totalBytes())
-                        );
-                        diskList.append(line);
-                    }
-                    // potong menjadi bagian2 < 1900 char (aman untuk code block + text)
-                    for (String chunk : chunkString(diskList.toString(), 1800)) {
-                        event.getHook().sendMessage(codeBlock(chunk)).queue();
-                    }
-                } else {
-                    event.getHook().sendMessage("_No storage info_").queue();
-                }
-
-                // ===== detail NETWORK: kirim semua interface =====
-                if (m.networks() != null && !m.networks().isEmpty()) {
-                    StringBuilder netList = new StringBuilder();
-                    netList.append("**Network Interfaces (all)**\n");
-                    int idx = 1;
-                    for (var nif : m.networks()) {
-                        String ipv4 = (nif.ipv4() == null || nif.ipv4().isBlank()) ? "-" : nif.ipv4();
-                        String ipv6 = (nif.ipv6() == null || nif.ipv6().isBlank()) ? "-" : nif.ipv6();
-                        String line = String.format(
-                                "%d) `%s` • %s\nIPv4: %s | IPv6: %s\n↓ %s • ↑ %s\n\n",
-                                idx++,
-                                safe(nif.name()), safe(nif.mac()),
-                                ipv4, ipv6,
-                                humanBytes(nif.bytesRecv()),
-                                humanBytes(nif.bytesSent())
-                        );
-                        netList.append(line);
-                    }
-                    for (String chunk : chunkString(netList.toString(), 1800)) {
-                        event.getHook().sendMessage(codeBlock(chunk)).queue();
-                    }
-                } else {
-                    event.getHook().sendMessage("_No network interface info_").queue();
-                }
-            }
-
-            default -> event.reply("Unknown command 🤔").setEphemeral(true).queue();
-        }
-    }
 }
