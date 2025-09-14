@@ -1,10 +1,10 @@
-name: Build Native (Maven) & Upload (Actions + Release)
+name: Build Jar (Maven) & Upload (Actions + Release)
 
 on:
   push:
     branches: [ master ]
   release:
-    types: [published]        # HANYA saat release dipublish (bukan draft)
+    types: [published]        # hanya saat release dipublish (bukan draft)
   workflow_dispatch:
 
 permissions:
@@ -27,33 +27,37 @@ jobs:
         if: github.event_name != 'release'
         uses: actions/checkout@v4
 
-      - name: Setup GraalVM JDK 21 (+native-image)
-        uses: graalvm/setup-graalvm@v1
+      - name: Set up Temurin JDK 21
+        uses: actions/setup-java@v4
         with:
+          distribution: 'temurin'
           java-version: '21'
-          distribution: 'graalvm-community'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: 'maven'
 
-      - name: Build native image (skip tests)
+      - name: Build JAR (skip tests)
         run: |
           chmod +x mvnw
-          ./mvnw -Pnative -DskipTests native:compile
+          ./mvnw -B -DskipTests package
 
       - name: Package artifact (zip)
         id: pack
         shell: bash
         run: |
           set -euo pipefail
-          BINPATH=$(find target -maxdepth 1 -type f -perm -111 -printf "%p %s\n" \
-            | sort -k2 -nr | head -n1 | awk '{print $1}')
 
-          if [ -z "${BINPATH:-}" ] || [ ! -f "$BINPATH" ]; then
-            echo "Native binary tidak ditemukan di target/." >&2
+          # Ambil JAR runnable terbaru (bukan sources/javadoc/original)
+          JARPATH=$(find target -maxdepth 1 -type f -name "*.jar" \
+            ! -name "*-sources.jar" ! -name "*-javadoc.jar" ! -name "original-*.jar" \
+            -printf "%T@ %p\n" | sort -nr | head -n1 | awk '{print $2}')
+
+          if [ -z "${JARPATH:-}" ] || [ ! -f "$JARPATH" ]; then
+            echo "JAR runnable tidak ditemukan di target/." >&2
             ls -lah target || true
             exit 1
           fi
 
-          APPNAME=$(basename "$BINPATH")
+          APPJAR="$(basename "$JARPATH")"
+          APPBASE="${APPJAR%.jar}"
 
           # Suffix: tag untuk release published, run_id untuk push master
           if [[ "${GITHUB_EVENT_NAME}" == "release" ]]; then
@@ -62,17 +66,16 @@ jobs:
             SUFFIX="${GITHUB_RUN_ID}"
           fi
 
-          ZIPNAME="${APPNAME}-linux-amd64-${SUFFIX}.zip"
+          ZIPNAME="${APPBASE}-${SUFFIX}.zip"
 
-          echo "Jalankan: ./${APPNAME}" > target/HOW_TO_RUN.txt
-          (cd target && zip -r "../${ZIPNAME}" "$APPNAME" HOW_TO_RUN.txt >/dev/null)
+          echo "Jalankan: java -jar ${APPJAR}" > target/HOW_TO_RUN.txt
+          (cd target && zip -r "../${ZIPNAME}" "${APPJAR}" HOW_TO_RUN.txt >/dev/null)
 
           sha256sum "${ZIPNAME}" | tee "${ZIPNAME}.sha256"
 
           echo "zip=${ZIPNAME}" >> "$GITHUB_OUTPUT"
           echo "checksum=${ZIPNAME}.sha256" >> "$GITHUB_OUTPUT"
 
-      # Simpan juga di Actions artifacts (opsional tapi berguna untuk arsip CI)
       - name: Upload artifact (Actions tab)
         uses: actions/upload-artifact@v4
         with:
@@ -83,7 +86,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # HANYA saat release published: upload ke halaman Release
       - name: Upload assets to Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
