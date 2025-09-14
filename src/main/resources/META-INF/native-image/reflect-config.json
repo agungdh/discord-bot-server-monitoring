@@ -1,26 +1,28 @@
 [
-  {
-    "name": "net.dv8tion.jda",
-    "allDeclaredConstructors": true,
-    "allDeclaredMethods": true,
-    "allDeclaredFields": true,
-    "allDeclaredClasses": true,
-    "unsafeAllocated": true
-  },
-  {
-    "name": "net.dv8tion.jda.api",
-    "allDeclaredConstructors": true,
-    "allDeclaredMethods": true,
-    "allDeclaredFields": true,
-    "allDeclaredClasses": true,
-    "unsafeAllocated": true
-  },
-  {
-    "name": "net.dv8tion.jda.internal",
-    "allDeclaredConstructors": true,
-    "allDeclaredMethods": true,
-    "allDeclaredFields": true,
-    "allDeclaredClasses": true,
-    "unsafeAllocated": true
-  }
+  { "name": "net.dv8tion.jda.api.entities.Guild",  "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.Guild;",  "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.Member", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.Member;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.User",   "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.User;",   "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.Role",   "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.Role;",   "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.channel.middleman.GuildChannel", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.channel.middleman.GuildChannel;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.channel.middleman.StandardGuildMessageChannel", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.channel.middleman.StandardGuildMessageChannel;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.channel.concrete.TextChannel", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.channel.concrete.TextChannel;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.channel.concrete.Category", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.channel.concrete.Category;", "unsafeAllocated": true }
 ]
