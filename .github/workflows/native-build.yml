@@ -1,0 +1,55 @@
+name: Build Native (Maven) & Upload Artifact
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  native:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup GraalVM JDK 21 (+native-image)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm-community'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build native image (skip tests)
+        run: |
+          chmod +x mvnw
+          ./mvnw -Pnative -DskipTests native:compile
+
+      - name: Package artifact (zip)
+        id: pack
+        run: |
+          set -euo pipefail
+          BINPATH=$(find target -maxdepth 1 -type f -perm -111 -printf "%p %s\n" \
+            | sort -k2 -nr | head -n1 | awk '{print $1}')
+
+          if [ -z "$BINPATH" ] || [ ! -f "$BINPATH" ]; then
+            echo "Native binary tidak ditemukan di target/." >&2
+            ls -lah target || true
+            exit 1
+          fi
+
+          APPNAME=$(basename "$BINPATH")
+          ZIPNAME="${APPNAME}-linux-amd64-${{ github.run_id }}.zip"
+
+          echo "Jalankan: ./${APPNAME}" > target/HOW_TO_RUN.txt
+          (cd target && zip -r "../${ZIPNAME}" "$APPNAME" HOW_TO_RUN.txt >/dev/null)
+
+          echo "zip=${ZIPNAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pack.outputs.zip }}
+          path: ${{ steps.pack.outputs.zip }}
+          if-no-files-found: error
+          retention-days: 14
