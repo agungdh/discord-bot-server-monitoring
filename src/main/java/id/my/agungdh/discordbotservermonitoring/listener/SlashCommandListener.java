@@ -14,8 +14,19 @@ public class SlashCommandListener extends ListenerAdapter {
     @Override
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
         switch (event.getName()) {
-            case "ping" -> event.reply("🏓 Pong!").setEphemeral(true).queue();
-            case "echo" -> event.reply(event.getOption("text").getAsString()).queue();
+            case "ping" -> {
+                long start = System.currentTimeMillis();
+                event.reply("⏱️ Pinging...").setEphemeral(true).queue(hook -> {
+                    long latency = System.currentTimeMillis() - start;
+                    hook.editOriginal("🏓 Pong! Latency ~ **" + latency + " ms**").queue();
+                });
+            }
+
+            case "echo" -> {
+                String text = event.getOption("text").getAsString();
+                event.reply(text).queue();
+            }
+
             default -> event.reply("Unknown command 🤔").setEphemeral(true).queue();
         }
     }
