@@ -60,5 +60,14 @@
   { "name": "[Lnet.dv8tion.jda.api.entities.emoji.UnicodeEmoji;", "unsafeAllocated": true },
 
   { "name": "net.dv8tion.jda.api.entities.sticker.Sticker", "unsafeAllocated": true },
-  { "name": "[Lnet.dv8tion.jda.api.entities.sticker.Sticker;", "unsafeAllocated": true }
+  { "name": "[Lnet.dv8tion.jda.api.entities.sticker.Sticker;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.sticker.GuildSticker", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.sticker.GuildSticker;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.sticker.StickerItem", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.sticker.StickerItem;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.sticker.StickerPack", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.sticker.StickerPack;", "unsafeAllocated": true }
 ]
