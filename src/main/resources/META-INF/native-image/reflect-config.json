@@ -24,5 +24,8 @@
   { "name": "[Lnet.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;", "unsafeAllocated": true },
 
   { "name": "net.dv8tion.jda.api.entities.channel.concrete.Category", "unsafeAllocated": true },
-  { "name": "[Lnet.dv8tion.jda.api.entities.channel.concrete.Category;", "unsafeAllocated": true }
+  { "name": "[Lnet.dv8tion.jda.api.entities.channel.concrete.Category;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.managers.AudioManager", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.managers.AudioManager;", "unsafeAllocated": true }
 ]
