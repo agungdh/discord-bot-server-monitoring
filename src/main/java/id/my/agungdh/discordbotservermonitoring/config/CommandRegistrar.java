@@ -23,16 +23,20 @@ public class CommandRegistrar extends ListenerAdapter {
     @Override
     public void onReady(@NotNull ReadyEvent event) {
         var ping = Commands.slash("ping", "Cek latensi bot");
-        var echo = Commands.slash("echo", "Balas teks").addOption(
-                net.dv8tion.jda.api.interactions.commands.OptionType.STRING, "text", "Teks", true
-        );
+        var echo = Commands.slash("echo", "Balas teks")
+                .addOption(net.dv8tion.jda.api.interactions.commands.OptionType.STRING, "text", "Teks", true);
+
+        var health = Commands.slash("health", "Tampilkan kesehatan/monitoring server");
 
         if (guildId != null && !guildId.isBlank()) {
             Guild guild = jda.getGuildById(guildId);
-            if (guild != null) guild.updateCommands().addCommands(ping, echo).queue();
-            else System.err.println("Guild ID tidak ditemukan: " + guildId);
+            if (guild != null) {
+                guild.updateCommands().addCommands(ping, echo, health).queue();
+            } else {
+                System.err.println("Guild ID tidak ditemukan: " + guildId);
+            }
         } else {
-            jda.updateCommands().addCommands(ping, echo).queue(); // global (propagasi beberapa menit)
+            jda.updateCommands().addCommands(ping, echo, health).queue();
         }
     }
 }
