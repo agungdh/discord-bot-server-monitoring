@@ -1,15 +1,27 @@
 [
+  { "name": "net.dv8tion.jda.api.hooks.ListenerAdapter", "allDeclaredMethods": true },
+
+  { "name": "net.dv8tion.jda.api.events.StatusChangeEvent" },
+  { "name": "net.dv8tion.jda.api.events.ExceptionEvent" },
+  { "name": "net.dv8tion.jda.api.events.GatewayPingEvent" },
+
   { "name": "net.dv8tion.jda.api.entities.Guild",  "unsafeAllocated": true },
   { "name": "[Lnet.dv8tion.jda.api.entities.Guild;",  "unsafeAllocated": true },
 
   { "name": "net.dv8tion.jda.api.entities.Member", "unsafeAllocated": true },
   { "name": "[Lnet.dv8tion.jda.api.entities.Member;", "unsafeAllocated": true },
 
-  { "name": "net.dv8tion.jda.api.entities.User",   "unsafeAllocated": true },
-  { "name": "[Lnet.dv8tion.jda.api.entities.User;",   "unsafeAllocated": true },
+  { "name": "net.dv8tion.jda.api.entities.User", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.User;", "unsafeAllocated": true },
 
-  { "name": "net.dv8tion.jda.api.entities.Role",   "unsafeAllocated": true },
-  { "name": "[Lnet.dv8tion.jda.api.entities.Role;",   "unsafeAllocated": true },
+  { "name": "net.dv8tion.jda.api.entities.Role", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.Role;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.ScheduledEvent", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.ScheduledEvent;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.managers.AudioManager", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.managers.AudioManager;", "unsafeAllocated": true },
 
   { "name": "net.dv8tion.jda.api.entities.channel.middleman.GuildChannel", "unsafeAllocated": true },
   { "name": "[Lnet.dv8tion.jda.api.entities.channel.middleman.GuildChannel;", "unsafeAllocated": true },
@@ -26,31 +38,27 @@
   { "name": "net.dv8tion.jda.api.entities.channel.concrete.Category", "unsafeAllocated": true },
   { "name": "[Lnet.dv8tion.jda.api.entities.channel.concrete.Category;", "unsafeAllocated": true },
 
-  { "name": "net.dv8tion.jda.api.managers.AudioManager", "unsafeAllocated": true },
-  { "name": "[Lnet.dv8tion.jda.api.managers.AudioManager;", "unsafeAllocated": true },
+  { "name": "net.dv8tion.jda.api.entities.channel.concrete.ForumChannel", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.channel.concrete.ForumChannel;", "unsafeAllocated": true },
 
-  {
-    "name": "net.dv8tion.jda.api.hooks.ListenerAdapter",
-    "methods": [
-      {
-        "name": "onStatusChange",
-        "parameterTypes": ["net.dv8tion.jda.api.events.StatusChangeEvent"]
-      },
-      {
-        "name": "onException",
-        "parameterTypes": ["net.dv8tion.jda.api.events.ExceptionEvent"]
-      }
-    ]
-  },
+  { "name": "net.dv8tion.jda.api.entities.channel.concrete.StageChannel", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.channel.concrete.StageChannel;", "unsafeAllocated": true },
 
-  {
-    "name": "net.dv8tion.jda.api.hooks.ListenerAdapter",
-    "allDeclaredMethods": true
-  },
-  { "name": "net.dv8tion.jda.api.events.StatusChangeEvent" },
-  { "name": "net.dv8tion.jda.api.events.ExceptionEvent" },
-  { "name": "net.dv8tion.jda.api.events.GatewayPingEvent" },
+  { "name": "net.dv8tion.jda.api.entities.channel.concrete.ThreadChannel", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.channel.concrete.ThreadChannel;", "unsafeAllocated": true },
 
-  { "name": "net.dv8tion.jda.api.entities.ScheduledEvent", "unsafeAllocated": true },
-  { "name": "[Lnet.dv8tion.jda.api.entities.ScheduledEvent;", "unsafeAllocated": true }
+  { "name": "net.dv8tion.jda.api.entities.emoji.Emoji", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.emoji.Emoji;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.emoji.CustomEmoji", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.emoji.CustomEmoji;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.emoji.RichCustomEmoji", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.emoji.RichCustomEmoji;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.emoji.UnicodeEmoji", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.emoji.UnicodeEmoji;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.api.entities.sticker.Sticker", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.sticker.Sticker;", "unsafeAllocated": true }
 ]
