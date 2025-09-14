@@ -41,5 +41,16 @@
         "parameterTypes": ["net.dv8tion.jda.api.events.ExceptionEvent"]
       }
     ]
-  }
+  },
+
+  {
+    "name": "net.dv8tion.jda.api.hooks.ListenerAdapter",
+    "allDeclaredMethods": true
+  },
+  { "name": "net.dv8tion.jda.api.events.StatusChangeEvent" },
+  { "name": "net.dv8tion.jda.api.events.ExceptionEvent" },
+  { "name": "net.dv8tion.jda.api.events.GatewayPingEvent" },
+
+  { "name": "net.dv8tion.jda.api.entities.ScheduledEvent", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.api.entities.ScheduledEvent;", "unsafeAllocated": true }
 ]
