@@ -69,5 +69,35 @@
   { "name": "[Lnet.dv8tion.jda.api.entities.sticker.StickerItem;", "unsafeAllocated": true },
 
   { "name": "net.dv8tion.jda.api.entities.sticker.StickerPack", "unsafeAllocated": true },
-  { "name": "[Lnet.dv8tion.jda.api.entities.sticker.StickerPack;", "unsafeAllocated": true }
+  { "name": "[Lnet.dv8tion.jda.api.entities.sticker.StickerPack;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.internal.entities.GuildVoiceStateImpl", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.internal.entities.GuildVoiceStateImpl;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.internal.entities.MemberImpl", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.internal.entities.MemberImpl;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.internal.entities.ScheduledEventImpl", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.internal.entities.ScheduledEventImpl;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.internal.entities.GuildScheduledEventImpl", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.internal.entities.GuildScheduledEventImpl;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.internal.entities.sticker.GuildStickerImpl", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.internal.entities.sticker.GuildStickerImpl;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.internal.entities.channel.concrete.TextChannelImpl", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.internal.entities.channel.concrete.TextChannelImpl;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.internal.entities.channel.concrete.VoiceChannelImpl", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.internal.entities.channel.concrete.VoiceChannelImpl;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.internal.entities.channel.concrete.CategoryImpl", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.internal.entities.channel.concrete.CategoryImpl;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.internal.entities.channel.concrete.StageChannelImpl", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.internal.entities.channel.concrete.StageChannelImpl;", "unsafeAllocated": true },
+
+  { "name": "net.dv8tion.jda.internal.entities.channel.concrete.ThreadChannelImpl", "unsafeAllocated": true },
+  { "name": "[Lnet.dv8tion.jda.internal.entities.channel.concrete.ThreadChannelImpl;", "unsafeAllocated": true }
 ]
