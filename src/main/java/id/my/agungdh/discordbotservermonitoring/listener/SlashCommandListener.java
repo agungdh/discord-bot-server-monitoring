@@ -26,6 +26,107 @@ public class SlashCommandListener extends ListenerAdapter {
         jda.addEventListener(this);
     }
 
+    private static String codeBlock(String s) {
+        return "```" + s + "```";
+    }
+
+    /* ====================== Helpers ====================== */
+
+    private static String safe(String s) {
+        return s == null ? "" : s;
+    }
+
+    private static List<String> chunkString(String s, int maxLen) {
+        List<String> parts = new ArrayList<>();
+        String remaining = s;
+        while (remaining.length() > maxLen) {
+            int cut = maxLen;
+            int nl = remaining.lastIndexOf('\n', maxLen);
+            if (nl > 0) cut = nl;
+            parts.add(remaining.substring(0, cut));
+            remaining = remaining.substring(cut);
+        }
+        if (!remaining.isBlank()) parts.add(remaining);
+        return parts;
+    }
+
+    private static List<String> paginateLabeled(String title, String content, int pageLen) {
+        List<String> chunks = chunkString(content, pageLen);
+        List<String> labeled = new ArrayList<>(chunks.size());
+        for (int i = 0; i < chunks.size(); i++) {
+            labeled.add("**" + title + " (Page " + (i + 1) + "/" + chunks.size() + ")**\n\n" + chunks.get(i));
+        }
+        return labeled;
+    }
+
+    private static List<String> toCodeBlocks(List<String> rawParts) {
+        List<String> blocks = new ArrayList<>(rawParts.size());
+        for (String p : rawParts) blocks.add(codeBlock(p));
+        return blocks;
+    }
+
+    // Kirim berantai agar urutan pasti
+    private static CompletableFuture<Void> sendSequentially(
+            net.dv8tion.jda.api.interactions.InteractionHook hook,
+            List<String> messages
+    ) {
+        CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+        for (String msg : messages) {
+            chain = chain.thenCompose(ignored -> toCF(hook.sendMessage(msg)).thenApply(x -> null));
+        }
+        return chain;
+    }
+
+    private static <T> CompletableFuture<T> toCF(net.dv8tion.jda.api.requests.RestAction<T> ra) {
+        var cf = new CompletableFuture<T>();
+        ra.queue(cf::complete, cf::completeExceptionally);
+        return cf;
+    }
+
+    private static String humanBytes(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        double v = bytes;
+        String[] u = {"KB", "MB", "GB", "TB", "PB"};
+        int i = -1;
+        while (v >= 1024 && i < u.length - 1) {
+            v /= 1024;
+            i++;
+        }
+        return String.format(Locale.US, "%.2f %s", v, u[i]);
+    }
+
+    private static String progressBar(double percent) {
+        int filled = (int) Math.round(Math.max(0, Math.min(100, percent)) / 10.0);
+        StringBuilder sb = new StringBuilder(10);
+        for (int i = 0; i < 10; i++) sb.append(i < filled ? "█" : "░");
+        return sb.toString();
+    }
+
+    private static String humanUptime(long seconds) {
+        Duration d = Duration.ofSeconds(Math.max(0, seconds));
+        long days = d.toDays();
+        d = d.minusDays(days);
+        long hours = d.toHours();
+        d = d.minusHours(hours);
+        long mins = d.toMinutes();
+        StringBuilder sb = new StringBuilder();
+        if (days > 0) sb.append(days).append("d ");
+        if (hours > 0) sb.append(hours).append("h ");
+        sb.append(mins).append("m");
+        return sb.toString();
+    }
+
+    private static String gaugeEmoji(double percent) {
+        if (percent >= 90) return "🟥";
+        if (percent >= 75) return "🟧";
+        if (percent >= 50) return "🟨";
+        return "🟩";
+    }
+
+    private static String round2(double v) {
+        return String.format(Locale.US, "%.2f", v);
+    }
+
     @Override
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
         switch (event.getName()) {
@@ -152,101 +253,5 @@ public class SlashCommandListener extends ListenerAdapter {
 
             default -> event.reply("Unknown command 🤔").setEphemeral(true).queue();
         }
-    }
-
-    /* ====================== Helpers ====================== */
-
-    private static String codeBlock(String s) { return "```" + s + "```"; }
-    private static String safe(String s) { return s == null ? "" : s; }
-
-    private static List<String> chunkString(String s, int maxLen) {
-        List<String> parts = new ArrayList<>();
-        String remaining = s;
-        while (remaining.length() > maxLen) {
-            int cut = maxLen;
-            int nl = remaining.lastIndexOf('\n', maxLen);
-            if (nl > 0) cut = nl;
-            parts.add(remaining.substring(0, cut));
-            remaining = remaining.substring(cut);
-        }
-        if (!remaining.isBlank()) parts.add(remaining);
-        return parts;
-    }
-
-    private static List<String> paginateLabeled(String title, String content, int pageLen) {
-        List<String> chunks = chunkString(content, pageLen);
-        List<String> labeled = new ArrayList<>(chunks.size());
-        for (int i = 0; i < chunks.size(); i++) {
-            labeled.add("**" + title + " (Page " + (i + 1) + "/" + chunks.size() + ")**\n\n" + chunks.get(i));
-        }
-        return labeled;
-    }
-
-    private static List<String> toCodeBlocks(List<String> rawParts) {
-        List<String> blocks = new ArrayList<>(rawParts.size());
-        for (String p : rawParts) blocks.add(codeBlock(p));
-        return blocks;
-    }
-
-    // Kirim berantai agar urutan pasti
-    private static CompletableFuture<Void> sendSequentially(
-            net.dv8tion.jda.api.interactions.InteractionHook hook,
-            List<String> messages
-    ) {
-        CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
-        for (String msg : messages) {
-            chain = chain.thenCompose(ignored -> toCF(hook.sendMessage(msg)).thenApply(x -> null));
-        }
-        return chain;
-    }
-
-    private static <T> CompletableFuture<T> toCF(net.dv8tion.jda.api.requests.RestAction<T> ra) {
-        var cf = new CompletableFuture<T>();
-        ra.queue(cf::complete, cf::completeExceptionally);
-        return cf;
-    }
-
-    private static String humanBytes(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        double v = bytes;
-        String[] u = {"KB", "MB", "GB", "TB", "PB"};
-        int i = -1;
-        while (v >= 1024 && i < u.length - 1) {
-            v /= 1024;
-            i++;
-        }
-        return String.format(Locale.US, "%.2f %s", v, u[i]);
-    }
-
-    private static String progressBar(double percent) {
-        int filled = (int) Math.round(Math.max(0, Math.min(100, percent)) / 10.0);
-        StringBuilder sb = new StringBuilder(10);
-        for (int i = 0; i < 10; i++) sb.append(i < filled ? "█" : "░");
-        return sb.toString();
-    }
-
-    private static String humanUptime(long seconds) {
-        Duration d = Duration.ofSeconds(Math.max(0, seconds));
-        long days = d.toDays();
-        d = d.minusDays(days);
-        long hours = d.toHours();
-        d = d.minusHours(hours);
-        long mins = d.toMinutes();
-        StringBuilder sb = new StringBuilder();
-        if (days > 0) sb.append(days).append("d ");
-        if (hours > 0) sb.append(hours).append("h ");
-        sb.append(mins).append("m");
-        return sb.toString();
-    }
-
-    private static String gaugeEmoji(double percent) {
-        if (percent >= 90) return "🟥";
-        if (percent >= 75) return "🟧";
-        if (percent >= 50) return "🟨";
-        return "🟩";
-    }
-
-    private static String round2(double v) {
-        return String.format(Locale.US, "%.2f", v);
     }
 }
