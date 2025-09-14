@@ -5,4 +5,5 @@ public record MemoryDTO(
         long usedBytes,
         long freeBytes,
         double usedPercent
-) {}
+) {
+}

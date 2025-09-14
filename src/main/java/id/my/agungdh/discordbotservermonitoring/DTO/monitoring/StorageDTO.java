@@ -6,4 +6,5 @@ public record StorageDTO(
         long totalBytes,
         long usableBytes,
         double usedPercent
-) {}
+) {
+}

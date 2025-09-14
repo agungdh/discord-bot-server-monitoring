@@ -4,4 +4,5 @@ public record SwapDTO(
         long totalBytes,
         long usedBytes,
         double usedPercent
-) {}
+) {
+}

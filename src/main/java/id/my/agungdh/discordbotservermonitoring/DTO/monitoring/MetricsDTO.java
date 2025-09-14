@@ -13,4 +13,5 @@ public record MetricsDTO(
         SwapDTO swap,
         List<StorageDTO> storage,
         List<NetworkDTO> networks
-) {}
+) {
+}

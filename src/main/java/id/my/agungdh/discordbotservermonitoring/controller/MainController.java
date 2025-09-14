@@ -12,10 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping
 @RequiredArgsConstructor
 public class MainController {
+    private final MetricsService metricsService;
     @Value("${spring.application.name}")
     String name;
-
-    private final MetricsService metricsService;
 
     @GetMapping
     public String index() {

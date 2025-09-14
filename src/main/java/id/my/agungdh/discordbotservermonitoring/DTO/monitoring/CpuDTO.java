@@ -10,4 +10,5 @@ public record CpuDTO(
         double cpuUsage,
         List<Double> perCoreUsage,
         Double temperatureC
-) {}
+) {
+}

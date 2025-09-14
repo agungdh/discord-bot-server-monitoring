@@ -7,4 +7,5 @@ public record NetworkDTO(
         String ipv6,
         long bytesRecv,
         long bytesSent
-) {}
+) {
+}

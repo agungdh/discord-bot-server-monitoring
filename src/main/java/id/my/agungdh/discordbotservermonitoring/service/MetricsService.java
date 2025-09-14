@@ -28,12 +28,28 @@ public class MetricsService {
 
     private final SystemInfo si = new SystemInfo();
     private final CentralProcessor cpu = si.getHardware().getProcessor();
+    private long[] prevCpuTicks = cpu.getSystemCpuLoadTicks();
+    private long[][] prevProcTicks = cpu.getProcessorCpuLoadTicks();
     private final GlobalMemory mem = si.getHardware().getMemory();
     private final OperatingSystem os = si.getOperatingSystem();
     private final Sensors sensors = si.getHardware().getSensors();
 
-    private long[] prevCpuTicks = cpu.getSystemCpuLoadTicks();
-    private long[][] prevProcTicks = cpu.getProcessorCpuLoadTicks();
+    // util aman untuk panggil getter NIO yang kadang lempar UnsupportedOperationException di native
+    private static long safeLong(LongSupplierThrows action) {
+        try {
+            return action.getAsLong();
+        } catch (Throwable t) {
+            return 0L;
+        }
+    }
+
+    private static double round2(double v) {
+        return Math.round(v * 100.0) / 100.0;
+    }
+
+    private static String safe(String s) {
+        return s == null ? "" : s;
+    }
 
     public MetricsDTO snapshot(boolean includeNetwork) {
         // CPU %
@@ -69,7 +85,7 @@ public class MetricsService {
         // Swap
         var vm = mem.getVirtualMemory();
         long swapTotal = vm.getSwapTotal();
-        long swapUsed  = vm.getSwapUsed();
+        long swapUsed = vm.getSwapUsed();
         SwapDTO swapDTO = new SwapDTO(
                 swapTotal, swapUsed,
                 round2(swapTotal == 0 ? 0.0 : (swapUsed * 100.0 / swapTotal))
@@ -142,17 +158,8 @@ public class MetricsService {
         );
     }
 
-    // util aman untuk panggil getter NIO yang kadang lempar UnsupportedOperationException di native
-    private static long safeLong(LongSupplierThrows action) {
-        try { return action.getAsLong(); } catch (Throwable t) { return 0L; }
-    }
-    @FunctionalInterface private interface LongSupplierThrows { long getAsLong() throws Exception; }
-
-    private static double round2(double v) {
-        return Math.round(v * 100.0) / 100.0;
-    }
-
-    private static String safe(String s) {
-        return s == null ? "" : s;
+    @FunctionalInterface
+    private interface LongSupplierThrows {
+        long getAsLong() throws Exception;
     }
 }

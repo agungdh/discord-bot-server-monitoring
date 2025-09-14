@@ -1,6 +1,8 @@
 package id.my.agungdh.discordbotservermonitoring.view;
 
-import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.*;
+import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.MetricsDTO;
+import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.NetworkDTO;
+import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.StorageDTO;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -15,7 +17,8 @@ import java.util.Map;
  */
 public final class MonitoringBlocks {
 
-    private MonitoringBlocks() {}
+    private MonitoringBlocks() {
+    }
 
     /* ====================== Public APIs ====================== */
 
@@ -109,7 +112,10 @@ public final class MonitoringBlocks {
         double v = bytes;
         String[] u = {"KB", "MB", "GB", "TB", "PB"};
         int i = -1;
-        while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+        while (v >= 1024 && i < u.length - 1) {
+            v /= 1024;
+            i++;
+        }
         return String.format("%.2f %s", v, u[i]);
     }
 
@@ -122,8 +128,10 @@ public final class MonitoringBlocks {
 
     public static String humanUptime(long seconds) {
         Duration d = Duration.ofSeconds(Math.max(0, seconds));
-        long days = d.toDays(); d = d.minusDays(days);
-        long hours = d.toHours(); d = d.minusHours(hours);
+        long days = d.toDays();
+        d = d.minusDays(days);
+        long hours = d.toHours();
+        d = d.minusHours(hours);
         long mins = d.toMinutes();
         StringBuilder sb = new StringBuilder();
         if (days > 0) sb.append(days).append("d ");
@@ -139,6 +147,11 @@ public final class MonitoringBlocks {
         return "🟩";
     }
 
-    public static String round2(double v) { return String.format("%.2f", v); }
-    public static String safe(String s) { return s == null ? "" : s; }
+    public static String round2(double v) {
+        return String.format("%.2f", v);
+    }
+
+    public static String safe(String s) {
+        return s == null ? "" : s;
+    }
 }
