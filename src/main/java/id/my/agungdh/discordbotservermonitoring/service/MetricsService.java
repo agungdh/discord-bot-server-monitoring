@@ -20,12 +20,6 @@ import java.util.List;
 
 @Service
 public class MetricsService {
-
-    // penting: matikan udev supaya native image gak nyentuh JNA udev
-    static {
-        System.setProperty("oshi.os.linux.allowudev", "false");
-    }
-
     private final SystemInfo si = new SystemInfo();
     private final CentralProcessor cpu = si.getHardware().getProcessor();
     private long[] prevCpuTicks = cpu.getSystemCpuLoadTicks();
