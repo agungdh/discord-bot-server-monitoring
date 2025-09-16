@@ -58,12 +58,12 @@ public class MainController {
                 dataset
         );
 
-        // Export chart as PNG
-        int width = 640;    // Width of the image
-        int height = 480;   // Height of the image
-        File chartFile = new File("SalesChart.png");
+        // Buat file di temporary directory
+        File tempFile = File.createTempFile("SalesChart_", ".png");
 
-        ChartUtils.saveChartAsPNG(chartFile, barChart, width, height);
-        System.out.println("Chart saved as " + chartFile.getAbsolutePath());
+        // Simpan chart ke file PNG
+        ChartUtils.saveChartAsPNG(tempFile, barChart, 640, 480);
+
+        System.out.println("Chart disimpan di: " + tempFile.getAbsolutePath());
     }
 }
