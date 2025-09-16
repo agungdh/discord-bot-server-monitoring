@@ -2,7 +2,9 @@ package id.my.agungdh.discordbotservermonitoring.client;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -28,19 +30,14 @@ public class PrometheusClient {
 
     /** Instant query (vector) */
     public List<ResultPoint> instantQuery(String promql) {
-        // Ganti fromHttpUrl(...) -> fromUriString(...) (tidak deprecated)
-        String uri = UriComponentsBuilder
-                .fromUriString("/api/v1/query")
-                .queryParam("query", promql)
-                .build(true)   // keep pre-encoded chars as-is
-                .toUriString();
+        var form = new LinkedMultiValueMap<String, String>();
+        form.add("query", promql);
 
-        PrometheusQueryResponse resp = this.http.get()
-                .uri(uri)
+        PrometheusQueryResponse resp = this.http.post()
+                .uri("/api/v1/query")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form)
                 .retrieve()
-                .onStatus(HttpStatusCode::isError, (req, res) ->
-                        // lempar exception dengan body error dari Prometheus
-                { throw new RuntimeException("Prometheus error: " + res.getStatusCode()); })
                 .body(PrometheusQueryResponse.class);
 
         if (resp == null || resp.data() == null || resp.data().result() == null) {
