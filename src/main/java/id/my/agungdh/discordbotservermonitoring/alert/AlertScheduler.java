@@ -82,6 +82,7 @@ public class AlertScheduler {
                 DownSession sess = downSessions.remove(instance);
                 try {
                     File chart = buildOutageChart(instance, sess.alias, sess.start, now);
+
                     String duration = humanDuration(Duration.between(sess.start, now));
                     String caption = String.format(
                             "[PING RECOVERY] %s (%s) UP ✅\nDowntime: %s\nWindow: %s → %s (%s)",
@@ -92,10 +93,15 @@ public class AlertScheduler {
                             tsLocal(now),
                             ZoneId.systemDefault()
                     );
-                    discordService.sendFile(guildId, channelId, chart, caption);
-                    // hapus file temp jika mau
-                    if (!chart.delete()) {
-                        log.debug("Temp chart retained at {}", chart.getAbsolutePath());
+
+                    if (chart != null && chart.exists()) {
+                        discordService.sendFile(guildId, channelId, chart, caption);
+                        if (!chart.delete()) {
+                            log.debug("Temp chart retained at {}", chart.getAbsolutePath());
+                        }
+                    } else {
+                        // fallback kalau data kosong
+                        discordService.sendMessage(guildId, channelId, caption + "\n(no chart data)");
                     }
                 } catch (Exception e) {
                     log.error("Failed to build/send outage chart for {}: {}", instance, e.getMessage(), e);
@@ -114,6 +120,11 @@ public class AlertScheduler {
                 instance,
                 alias == null ? "" : alias
         );
+
+        if (series == null || series.isEmpty()) {
+            log.warn("No series data for {} (alias={}) between {} and {}", instance, alias, start, end);
+            return null;
+        }
 
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
