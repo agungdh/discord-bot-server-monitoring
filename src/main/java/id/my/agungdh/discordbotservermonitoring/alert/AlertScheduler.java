@@ -32,9 +32,6 @@ public class AlertScheduler {
     @Value("${prometheus.query}") String query; // error/1m >=5 => alert
     @Value("${polling.cooldownSec:60}") long cooldownSec;
 
-    // throttle untuk alert spam per instance saat masih down
-    private final Map<String, Long> lastSent = new HashMap<>();
-
     // ===== Global down session (bukan per IP) =====
     private static final class GlobalDownSession {
         final Instant start;
@@ -44,8 +41,11 @@ public class AlertScheduler {
     }
     private GlobalDownSession session = null;
 
-    // Untuk syarat "up jika 1 menit tidak ada yang down"
+    // "up jika 1 menit tidak ada yang down"
     private Instant clearSince = null;
+
+    // throttle untuk pesan "GLOBAL DOWN" supaya tidak spam
+    private long lastGlobalAlertEpoch = 0L;
 
     @Scheduled(fixedDelayString = "${polling.intervalMs:3000}")
     public void tick() {
@@ -53,74 +53,39 @@ public class AlertScheduler {
         long nowEpoch = Instant.now().getEpochSecond();
         Instant now = Instant.ofEpochSecond(nowEpoch);
 
-        boolean anyDown = false;
-
-        // ===== proses setiap target (dan kirim alert embed per instance dg cooldown) =====
+        // Kumpulkan target yang down pada tick ini
+        List<PrometheusClient.ResultPoint> downs = new ArrayList<>();
         for (PrometheusClient.ResultPoint r : results) {
-            String instance = r.instance();
-            String alias = r.alias();
-            double value = r.value();
-            boolean isDown = value >= 5.0;
-
-            if (isDown) {
-                anyDown = true;
-
-                // alert throttled per instance
-                long last = lastSent.getOrDefault(instance, 0L);
-                if (nowEpoch - last >= cooldownSec) {
-                    var tsLocal = now.atZone(ZoneId.systemDefault());
-                    String msg = String.format(
-                            "[PING ALERT] Target=%s (%s) gagal %.0f kali/1m @ %s",
-                            instance,
-                            alias == null || alias.isBlank() ? "-" : alias,
-                            value,
-                            tsLocal.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"))
-                    );
-                    log.warn(msg);
-                    lastSent.put(instance, nowEpoch);
-                    discordService.sendAlertEmbed(guildId, channelId, instance, alias, value, now);
-                }
-
-                // catat ke global session jika sedang aktif
-                if (session != null) {
-                    session.instances.add(instance);
-                    session.aliasByInstance.put(instance, alias == null ? "" : alias);
-                }
+            if (r.value() >= 5.0) {
+                downs.add(r);
             }
         }
+        boolean anyDown = !downs.isEmpty();
 
-        // ===== state machine global session =====
+        // ===== GLOBAL SESSION STATE MACHINE =====
         if (session == null) {
-            // belum ada sesi — mulai jika ada yang down
             if (anyDown) {
                 session = new GlobalDownSession(now);
-                // catat semua instance yang down pada tick ini
-                for (var r : results) {
-                    if (r.value() >= 5.0) {
-                        session.instances.add(r.instance());
-                        session.aliasByInstance.put(r.instance(), r.alias() == null ? "" : r.alias());
-                    }
+                for (var r : downs) {
+                    session.instances.add(r.instance());
+                    session.aliasByInstance.put(r.instance(), r.alias() == null ? "" : r.alias());
                 }
                 log.info("Start GLOBAL DOWN session at {}", now);
-                // saat masih ada yang down, tidak ada clearSince
                 clearSince = null;
             }
         } else {
-            // sudah dalam sesi
             if (anyDown) {
-                // masih down: reset clearSince
-                clearSince = null;
-                // akumulasi target down yang baru muncul
-                for (var r : results) {
-                    if (r.value() >= 5.0) {
-                        session.instances.add(r.instance());
-                        session.aliasByInstance.put(r.instance(), r.alias() == null ? "" : r.alias());
-                    }
+                // akumulasi target yang down baru
+                for (var r : downs) {
+                    session.instances.add(r.instance());
+                    session.aliasByInstance.put(r.instance(), r.alias() == null ? "" : r.alias());
                 }
+                // masih down → reset clearSince
+                clearSince = null;
             } else {
-                // tidak ada yang down saat ini
+                // tidak ada yang down saat ini → mulai/lanjut hitung bersih
                 if (clearSince == null) {
-                    clearSince = now; // mulai hitung periode bersih
+                    clearSince = now;
                 }
                 // jika sudah bersih >= 1 menit → recovery
                 if (Duration.between(clearSince, now).compareTo(Duration.ofMinutes(1)) >= 0) {
@@ -158,6 +123,24 @@ public class AlertScheduler {
                 }
             }
         }
+
+        // ===== KIRIM GLOBAL ALERT (gabungan) SAAT SEDANG DOWN =====
+        if (anyDown) {
+            if (nowEpoch - lastGlobalAlertEpoch >= cooldownSec) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("🛑 **GLOBAL PING ALERT** — target down terdeteksi\n");
+                sb.append("Waktu: ").append(tsLocal(now)).append("\n");
+                sb.append("Daftar target (gagal/1m):\n");
+                // urutkan yang paling parah di atas
+                downs.sort((a, b) -> Double.compare(b.value(), a.value()));
+                for (var r : downs) {
+                    String alias = (r.alias() == null || r.alias().isBlank()) ? "-" : r.alias();
+                    sb.append(String.format("- `%s` (%s): %d/1m\n", r.instance(), alias, (int) r.value()));
+                }
+                discordService.sendMessage(guildId, channelId, sb.toString());
+                lastGlobalAlertEpoch = nowEpoch;
+            }
+        }
     }
 
     /**
@@ -170,7 +153,7 @@ public class AlertScheduler {
             return null;
         }
 
-        // Kunci = timestamp (minute step dari Prometheus), nilai = total error di menit itu
+        // Kunci = timestamp, nilai = total error pada menit ts
         Map<Instant, Double> totalByTs = new TreeMap<>();
 
         for (String inst : sess.instances) {
