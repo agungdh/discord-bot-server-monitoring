@@ -40,14 +40,23 @@ public class AlertScheduler {
                 String key = r.instance(); // per IP
                 long last = lastSent.getOrDefault(key, 0L);
                 if (now - last >= cooldownSec) {
+                    Instant ts = Instant.ofEpochSecond(now);
+
                     String msg = String.format(
                             "[PING ALERT] Target=%s (%s) gagal %.0f kali/1m @ %s",
                             r.instance(), r.alias().isEmpty() ? "-" : r.alias(),
-                            r.value(), Instant.ofEpochSecond(now));
+                            r.value(), ts);
                     log.warn(msg);
                     lastSent.put(key, now);
 
-                    discordService.sendMessage(guildId, channelId, msg);
+                    discordService.sendAlertEmbed(
+                            guildId,
+                            channelId,
+                            r.instance(),
+                            r.alias(),
+                            r.value(),
+                            ts
+                    );
                 }
             }
         }
