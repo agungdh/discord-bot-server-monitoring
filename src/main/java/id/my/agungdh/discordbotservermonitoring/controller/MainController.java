@@ -4,9 +4,16 @@ import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.MetricsDTO;
 import id.my.agungdh.discordbotservermonitoring.service.DiscordService;
 import id.my.agungdh.discordbotservermonitoring.service.MetricsService;
 import lombok.RequiredArgsConstructor;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.ChartUtils;
+import org.jfree.chart.JFreeChart;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.File;
+import java.io.IOException;
 
 @RestController
 @RequestMapping
@@ -33,5 +40,30 @@ public class MainController {
                                               @RequestBody String message) {
         discordService.sendMessage(guildId, channelId, message);
         return ResponseEntity.ok("Message sent");
+    }
+
+    @GetMapping("/chart")
+    public void testChart() throws IOException {
+        // Create a dataset
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        dataset.addValue(10, "Sales", "January");
+        dataset.addValue(15, "Sales", "February");
+        dataset.addValue(20, "Sales", "March");
+
+        // Create a chart
+        JFreeChart barChart = ChartFactory.createBarChart(
+                "Monthly Sales",    // Chart title
+                "Month",            // Category axis label
+                "Sales",            // Value axis label
+                dataset
+        );
+
+        // Export chart as PNG
+        int width = 640;    // Width of the image
+        int height = 480;   // Height of the image
+        File chartFile = new File("SalesChart.png");
+
+        ChartUtils.saveChartAsPNG(chartFile, barChart, width, height);
+        System.out.println("Chart saved as " + chartFile.getAbsolutePath());
     }
 }
