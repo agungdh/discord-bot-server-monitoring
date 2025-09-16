@@ -5,13 +5,16 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
 
+/**
+ * Prometheus client sederhana untuk instant query dan range query.
+ * Catatan: rangeQuery memakai POST application/x-www-form-urlencoded
+ * supaya aman untuk promql multiline / mengandung spasi & newline.
+ */
 @Component
 public class PrometheusClient {
 
@@ -21,10 +24,13 @@ public class PrometheusClient {
             @Value("${prometheus.baseUrl}") String baseUrl,
             RestClient.Builder builder
     ) {
-        this.http = builder.baseUrl(baseUrl).build();
+        // baseUrl contoh: http://localhost:9090
+        this.http = builder
+                .baseUrl(baseUrl)
+                .build();
     }
 
-    /** Instant query (vector) */
+    /** Instant query (vector) — sudah dari kamu */
     public List<ResultPoint> instantQuery(String promql) {
         var form = new LinkedMultiValueMap<String, String>();
         form.add("query", promql);
@@ -43,7 +49,7 @@ public class PrometheusClient {
         List<ResultPoint> out = new ArrayList<>();
         for (PromResult r : resp.data().result()) {
             Map<String, String> metric = r.metric();
-            List<Object> value = r.value(); // [ ts, "value" ]
+            List<Object> value = r.value(); // [ ts(double/string), "value(string)" ]
             if (value == null || value.size() < 2) continue;
 
             double v = Double.parseDouble(String.valueOf(value.get(1)));
@@ -54,23 +60,23 @@ public class PrometheusClient {
         return out;
     }
 
-    /** Range query (matrix), step perMinutes */
+    /** Range query (matrix) — PAKAI POST FORM-URLENCODED (bukan GET) */
     public List<RangePoint> rangeQuery(String promql,
                                        Instant start,
                                        Instant end,
                                        Duration step,
                                        String targetInstance,
                                        String targetAlias) {
-        String uri = UriComponentsBuilder.fromPath("/api/v1/query_range")
-                .queryParam("query", promql)
-                .queryParam("start", start.getEpochSecond())
-                .queryParam("end", end.getEpochSecond())
-                .queryParam("step", step.getSeconds() + "s")
-                .build(true) // jangan escape plus/minus di promql
-                .toUriString();
+        var form = new LinkedMultiValueMap<String, String>();
+        form.add("query", promql);
+        form.add("start", Long.toString(start.getEpochSecond()));
+        form.add("end",   Long.toString(end.getEpochSecond()));
+        form.add("step",  step.toSeconds() + "s"); // contoh: "60s"
 
-        PrometheusRangeResponse resp = this.http.get()
-                .uri(uri)
+        PrometheusRangeResponse resp = this.http.post()
+                .uri("/api/v1/query_range")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form)
                 .retrieve()
                 .body(PrometheusRangeResponse.class);
 
@@ -78,35 +84,30 @@ public class PrometheusClient {
             return List.of();
         }
 
-        // cari seri yang match instance+alias
+        // pilih time series yang match persis instance + alias
         Optional<PromResultRange> match = resp.data().result().stream()
                 .filter(rr -> {
                     String inst = Objects.toString(rr.metric().getOrDefault("instance",""));
-                    String alias = Objects.toString(rr.metric().getOrDefault("alias",""));
-                    boolean instOk = inst.equals(targetInstance);
-                    boolean aliasOk = Objects.toString(targetAlias, "").isBlank()
-                            ? alias.isBlank()
-                            : alias.equals(targetAlias);
-                    return instOk && aliasOk;
+                    String als  = Objects.toString(rr.metric().getOrDefault("alias",""));
+                    return inst.equals(targetInstance) &&
+                            als.equals(Objects.toString(targetAlias, ""));
                 })
                 .findFirst();
 
         if (match.isEmpty()) return List.of();
 
-        // map values -> RangePoint(ts, val)
-        return match.get().values().stream()
-                .map(pair -> {
-                    // pair: [ ts, "value" ]
-                    if (pair == null || pair.size() < 2) return null;
-                    long epoch = (long) Double.parseDouble(String.valueOf(pair.get(0)));
-                    double v = Double.parseDouble(String.valueOf(pair.get(1)));
-                    return new RangePoint(Instant.ofEpochSecond(epoch), v);
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        List<RangePoint> out = new ArrayList<>();
+        for (List<Object> pair : match.get().values()) {
+            // pair: [ ts, "value" ]
+            if (pair == null || pair.size() < 2) continue;
+            long epoch = (long) Double.parseDouble(String.valueOf(pair.get(0)));
+            double v   = Double.parseDouble(String.valueOf(pair.get(1)));
+            out.add(new RangePoint(Instant.ofEpochSecond(epoch), v));
+        }
+        return out;
     }
 
-    /** Output sederhana dipakai layer lain */
+    /** Output sederhana yang dipakai di layer lain */
     public record ResultPoint(String instance, String alias, double value) {}
     public record RangePoint(Instant timestamp, double value) {}
 
