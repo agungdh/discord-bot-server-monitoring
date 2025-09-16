@@ -9,12 +9,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class JdaConfig {
     @Bean
-    public JDA jda(@Value("${discord.token}") String token) {
+    public JDA jda(@Value("${discord.token}") String token) throws InterruptedException {
         if (token == null || token.isBlank()) {
             throw new IllegalStateException("DISCORD_TOKEN belum diset");
         }
-        // Interactions (slash) bisa jalan bahkan tanpa intents khusus
-        // (gunakan createLight dan tanpa intents untuk minimalis).
-        return JDABuilder.createLight(token).build();
+        JDA jda = JDABuilder.createLight(token).build();
+        jda.awaitReady(); // <— blok sampai ReadyEvent, cache guild/channel sudah siap
+        return jda;
     }
 }
