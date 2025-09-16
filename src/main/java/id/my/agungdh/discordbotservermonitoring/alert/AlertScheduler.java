@@ -100,9 +100,16 @@ public class AlertScheduler {
                             log.debug("Temp chart retained at {}", chart.getAbsolutePath());
                         }
                     } else {
-                        // fallback kalau data kosong
                         discordService.sendMessage(guildId, channelId, caption + "\n(no chart data)");
                     }
+
+                    // ✅ tambahan log di sini
+                    log.info("End DOWN session for {} (alias={}) at {}. Duration {}",
+                            instance,
+                            sess.alias,
+                            now,
+                            duration);
+
                 } catch (Exception e) {
                     log.error("Failed to build/send outage chart for {}: {}", instance, e.getMessage(), e);
                 }
