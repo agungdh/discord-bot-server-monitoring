@@ -10,6 +10,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,11 +44,15 @@ public class AlertScheduler {
                 long last = lastSent.getOrDefault(key, 0L);
                 if (now - last >= cooldownSec) {
                     Instant ts = Instant.ofEpochSecond(now);
+                    ZonedDateTime tsLocal = ts.atZone(ZoneId.systemDefault());
 
                     String msg = String.format(
                             "[PING ALERT] Target=%s (%s) gagal %.0f kali/1m @ %s",
-                            r.instance(), r.alias().isEmpty() ? "-" : r.alias(),
-                            r.value(), ts);
+                            r.instance(),
+                            r.alias().isEmpty() ? "-" : r.alias(),
+                            r.value(),
+                            tsLocal.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"))
+                    );
                     log.warn(msg);
                     lastSent.put(key, now);
 

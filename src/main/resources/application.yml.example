@@ -4,6 +4,7 @@ spring:
 discord:
   token:
   guild-id:
+  rto-alert-channel-id:
 prometheus:
   baseUrl: http://127.0.0.1:9090
   query: >
