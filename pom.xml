@@ -10,7 +10,7 @@
     </parent>
     <groupId>id.my.agungdh</groupId>
     <artifactId>discord-bot-server-monitoring</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.1</version>
     <name>discord-bot-server-monitoring</name>
     <description>discord-bot-server-monitoring</description>
     <url/>
