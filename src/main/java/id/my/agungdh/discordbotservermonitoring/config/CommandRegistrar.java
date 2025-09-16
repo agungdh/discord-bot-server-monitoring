@@ -1,43 +1,36 @@
 package id.my.agungdh.discordbotservermonitoring.config;
 
+import jakarta.annotation.PostConstruct;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.events.session.ReadyEvent;
-import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-@Component
-public class CommandRegistrar extends ListenerAdapter {
-    private final JDA jda;
-    private final String guildId;
+import java.util.Arrays;
+import java.util.List;
 
-    public CommandRegistrar(JDA jda, @Value("${discord.guild-id:}") String guildId) {
+@Component
+public class CommandRegistrar {
+    private final JDA jda;
+
+    public CommandRegistrar(JDA jda) {
         this.jda = jda;
-        this.guildId = guildId;
-        jda.addEventListener(this);
     }
 
-    @Override
-    public void onReady(@NotNull ReadyEvent event) {
-        var ping = Commands.slash("ping", "Cek latensi bot");
-        var echo = Commands.slash("echo", "Balas teks")
-                .addOption(net.dv8tion.jda.api.interactions.commands.OptionType.STRING, "text", "Teks", true);
-
+    @PostConstruct
+    public void registerGlobalCommands() {
+        var ping   = Commands.slash("ping", "Cek latensi bot");
+        var echo   = Commands.slash("echo", "Balas teks")
+                .addOption(OptionType.STRING, "text", "Teks", true);
         var health = Commands.slash("health", "Tampilkan kesehatan/monitoring server");
 
-        if (guildId != null && !guildId.isBlank()) {
-            Guild guild = jda.getGuildById(guildId);
-            if (guild != null) {
-                guild.updateCommands().addCommands(ping, echo, health).queue();
-            } else {
-                System.err.println("Guild ID tidak ditemukan: " + guildId);
-            }
-        } else {
-            jda.updateCommands().addCommands(ping, echo, health).queue();
-        }
+        jda.updateCommands()
+                .addCommands(ping, echo, health)   // replace penuh daftar command global
+                .queue(
+                        ok -> System.out.println("Synced GLOBAL commands"),
+                        Throwable::printStackTrace
+                );
     }
 }
-

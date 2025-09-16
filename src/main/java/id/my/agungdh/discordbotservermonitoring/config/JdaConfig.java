@@ -10,11 +10,9 @@ import org.springframework.context.annotation.Configuration;
 public class JdaConfig {
     @Bean
     public JDA jda(@Value("${discord.token}") String token) throws InterruptedException {
-        if (token == null || token.isBlank()) {
-            throw new IllegalStateException("DISCORD_TOKEN belum diset");
-        }
+        if (token == null || token.isBlank()) throw new IllegalStateException("DISCORD_TOKEN belum diset");
         JDA jda = JDABuilder.createLight(token).build();
-        jda.awaitReady(); // <— blok sampai ReadyEvent, cache guild/channel sudah siap
+        jda.awaitReady(); // setelah ini aman push command global
         return jda;
     }
 }
