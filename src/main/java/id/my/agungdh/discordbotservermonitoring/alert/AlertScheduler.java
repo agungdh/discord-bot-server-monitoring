@@ -1,6 +1,8 @@
 package id.my.agungdh.discordbotservermonitoring.alert;
 
 import id.my.agungdh.discordbotservermonitoring.client.PrometheusClient;
+import id.my.agungdh.discordbotservermonitoring.service.DiscordService;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,20 +14,21 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Component
+@RequiredArgsConstructor
 public class AlertScheduler {
     private static final Logger log = LoggerFactory.getLogger(AlertScheduler.class);
 
     private final PrometheusClient prom;
+    private final DiscordService discordService;
+
+    @Value("${discord.guild-id}") String guildId;
+    @Value("${discord.rto-alert-channel-id}") String channelId;
 
     @Value("${prometheus.query}") String query;
     @Value("${polling.cooldownSec:60}") long cooldownSec;
 
     // state: instance -> lastSentEpochSec
     private final Map<String, Long> lastSent = new HashMap<>();
-
-    public AlertScheduler(PrometheusClient prom) {
-        this.prom = prom;
-    }
 
     @Scheduled(fixedDelayString = "${polling.intervalMs:3000}")
     public void tick() {
@@ -43,6 +46,8 @@ public class AlertScheduler {
                             r.value(), Instant.ofEpochSecond(now));
                     log.warn(msg);
                     lastSent.put(key, now);
+
+                    discordService.sendMessage(guildId, channelId, msg);
                 }
             }
         }
