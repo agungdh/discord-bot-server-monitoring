@@ -32,7 +32,7 @@ public class AlertScheduler {
     @Value("${prometheus.query}") String query; // error/1m >=5 => alert
     @Value("${polling.cooldownSec:60}") long cooldownSec;
 
-    // ===== Global down session (bukan per IP) =====
+    // ===== Global down session =====
     private static final class GlobalDownSession {
         final Instant start;
         final Set<String> instances = new HashSet<>();
@@ -44,7 +44,7 @@ public class AlertScheduler {
     // "up jika 1 menit tidak ada yang down"
     private Instant clearSince = null;
 
-    // throttle untuk pesan "GLOBAL DOWN" supaya tidak spam
+    // throttle untuk pesan alert supaya tidak spam
     private long lastGlobalAlertEpoch = 0L;
 
     @Scheduled(fixedDelayString = "${polling.intervalMs:3000}")
@@ -53,16 +53,14 @@ public class AlertScheduler {
         long nowEpoch = Instant.now().getEpochSecond();
         Instant now = Instant.ofEpochSecond(nowEpoch);
 
-        // Kumpulkan target yang down pada tick ini
+        // kumpulkan target down
         List<PrometheusClient.ResultPoint> downs = new ArrayList<>();
         for (PrometheusClient.ResultPoint r : results) {
-            if (r.value() >= 5.0) {
-                downs.add(r);
-            }
+            if (r.value() >= 5.0) downs.add(r);
         }
         boolean anyDown = !downs.isEmpty();
 
-        // ===== GLOBAL SESSION STATE MACHINE =====
+        // ===== GLOBAL SESSION STATE =====
         if (session == null) {
             if (anyDown) {
                 session = new GlobalDownSession(now);
@@ -75,23 +73,17 @@ public class AlertScheduler {
             }
         } else {
             if (anyDown) {
-                // akumulasi target yang down baru
                 for (var r : downs) {
                     session.instances.add(r.instance());
                     session.aliasByInstance.put(r.instance(), r.alias() == null ? "" : r.alias());
                 }
-                // masih down → reset clearSince
-                clearSince = null;
+                clearSince = null; // masih down → reset
             } else {
-                // tidak ada yang down saat ini → mulai/lanjut hitung bersih
-                if (clearSince == null) {
-                    clearSince = now;
-                }
-                // jika sudah bersih >= 1 menit → recovery
+                if (clearSince == null) clearSince = now;
                 if (Duration.between(clearSince, now).compareTo(Duration.ofMinutes(1)) >= 0) {
                     try {
                         Instant start = session.start;
-                        File chart = buildOutageChartGlobal(session, start, now);
+                        File chart = buildOutageChartPerTarget(session, start, now);
 
                         String duration = humanDuration(Duration.between(start, now));
                         String caption = String.format(
@@ -114,9 +106,8 @@ public class AlertScheduler {
 
                         log.info("End GLOBAL DOWN session at {} (duration {})", now, duration);
                     } catch (Exception e) {
-                        log.error("Failed to build/send GLOBAL outage chart: {}", e.getMessage(), e);
+                        log.error("Failed to build/send outage chart: {}", e.getMessage(), e);
                     } finally {
-                        // tutup sesi & reset state
                         session = null;
                         clearSince = null;
                     }
@@ -124,72 +115,50 @@ public class AlertScheduler {
             }
         }
 
-        // ===== KIRIM GLOBAL ALERT (gabungan) SAAT SEDANG DOWN =====
-        if (anyDown) {
-            if (nowEpoch - lastGlobalAlertEpoch >= cooldownSec) {
-                StringBuilder sb = new StringBuilder();
-                sb.append("🛑 **GLOBAL PING ALERT** — target down terdeteksi\n");
-                sb.append("Waktu: ").append(tsLocal(now)).append("\n");
-                sb.append("Daftar target (gagal/1m):\n");
-                // urutkan yang paling parah di atas
-                downs.sort((a, b) -> Double.compare(b.value(), a.value()));
-                for (var r : downs) {
-                    String alias = (r.alias() == null || r.alias().isBlank()) ? "-" : r.alias();
-                    sb.append(String.format("- `%s` (%s): %d/1m\n", r.instance(), alias, (int) r.value()));
-                }
-                discordService.sendMessage(guildId, channelId, sb.toString());
-                lastGlobalAlertEpoch = nowEpoch;
+        // ===== GLOBAL ALERT MESSAGE =====
+        if (anyDown && nowEpoch - lastGlobalAlertEpoch >= cooldownSec) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("🛑 **GLOBAL PING ALERT**\n");
+            sb.append("Waktu: ").append(tsLocal(now)).append("\n");
+            sb.append("Daftar target (gagal/1m):\n");
+            downs.sort((a, b) -> Double.compare(b.value(), a.value()));
+            for (var r : downs) {
+                String alias = (r.alias() == null || r.alias().isBlank()) ? "-" : r.alias();
+                sb.append(String.format("- `%s` (%s): %d/1m\n", r.instance(), alias, (int) r.value()));
             }
+            discordService.sendMessage(guildId, channelId, sb.toString());
+            lastGlobalAlertEpoch = nowEpoch;
         }
     }
 
     /**
-     * Bangun 1 chart total error / menit dari start→end dengan menjumlahkan
-     * semua series (per instance) yang terlibat dalam sesi.
+     * Chart: 1 garis per target (instance).
      */
-    private File buildOutageChartGlobal(GlobalDownSession sess, Instant start, Instant end) throws Exception {
-        if (sess.instances.isEmpty()) {
-            log.warn("No instances recorded in session between {} and {}", start, end);
-            return null;
-        }
-
-        // Kunci = timestamp, nilai = total error pada menit ts
-        Map<Instant, Double> totalByTs = new TreeMap<>();
-
-        for (String inst : sess.instances) {
-            String alias = sess.aliasByInstance.getOrDefault(inst, "");
-            var series = prom.rangeQuery(
-                    query,
-                    start,
-                    end,
-                    Duration.ofMinutes(1),
-                    inst,
-                    alias
-            );
-            for (PrometheusClient.RangePoint p : series) {
-                totalByTs.merge(p.timestamp(), p.value(), Double::sum);
-            }
-        }
-
-        if (totalByTs.isEmpty()) {
-            log.warn("No range data returned for any instance in session.");
-            return null;
-        }
+    private File buildOutageChartPerTarget(GlobalDownSession sess, Instant start, Instant end) throws Exception {
+        if (sess.instances.isEmpty()) return null;
 
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
-        for (Map.Entry<Instant, Double> e : totalByTs.entrySet()) {
-            dataset.addValue(e.getValue(), "Total Errors", fmt.format(e.getKey()));
+
+        for (String inst : sess.instances) {
+            String alias = sess.aliasByInstance.getOrDefault(inst, "");
+            var series = prom.rangeQuery(query, start, end, Duration.ofMinutes(1), inst, alias);
+            String seriesName = alias.isBlank() ? inst : alias + " (" + inst + ")";
+            for (PrometheusClient.RangePoint p : series) {
+                dataset.addValue(p.value(), seriesName, fmt.format(p.timestamp()));
+            }
         }
 
+        if (dataset.getRowCount() == 0) return null;
+
         JFreeChart chart = ChartFactory.createLineChart(
-                "Total Ping Errors per Minute (GLOBAL)",
+                "Ping Errors per Minute (per target)",
                 String.format("Time (%s)", ZoneId.systemDefault()),
                 "Errors / min",
                 dataset
         );
 
-        File tmp = File.createTempFile("OutageChart_GLOBAL_", ".png");
+        File tmp = File.createTempFile("OutageChart_PerTarget_", ".png");
         ChartUtils.saveChartAsPNG(tmp, chart, 1000, 500);
         return tmp;
     }
