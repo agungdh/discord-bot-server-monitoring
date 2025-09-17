@@ -62,7 +62,7 @@ public class ErrorsCommand implements SlashCommand {
         var fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
         long total = Math.round(points.stream().mapToDouble(PrometheusClient.ResultPoint::value).sum());
         String header = "**Range:** " + fmt.format(start) + " → " + fmt.format(end)
-                + "\n**Total:** " + total + " menit";
+                + "\n**Total:** " + formatMinutes(total);
 
         if (points.isEmpty()) return header + "\n*(no data)*";
 
@@ -71,9 +71,21 @@ public class ErrorsCommand implements SlashCommand {
                 .map(p -> {
                     String alias = (p.alias() == null || p.alias().isBlank()) ? "-" : p.alias();
                     long mins = Math.round(p.value());
-                    return "• **" + alias + "** (`" + p.instance() + "`): " + mins + " m";
+                    return "• **" + alias + "** (`" + p.instance() + "`): " + formatMinutes(mins);
                 })
                 .collect(Collectors.joining("\n"));
         return header + "\n" + body;
+    }
+
+    private String formatMinutes(long minutes) {
+        long days = minutes / (24 * 60);
+        long hours = (minutes % (24 * 60)) / 60;
+        long mins = minutes % 60;
+
+        StringBuilder sb = new StringBuilder();
+        if (days > 0) sb.append(days).append(" hari ");
+        if (hours > 0) sb.append(hours).append(" jam ");
+        if (mins > 0 || sb.isEmpty()) sb.append(mins).append(" menit");
+        return sb.toString().trim();
     }
 }
