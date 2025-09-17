@@ -45,14 +45,17 @@ public class MainController {
     public String interval() {
         // Contoh penggunaan parser:
         PeriodDuration pd = parseInterval("10 tahun 3 bulan 2 hari 7 jam 16 menit 32 detik");
-        // misal diaplikasikan ke waktu sekarang
-        ZonedDateTime now = ZonedDateTime.now();
-        ZonedDateTime later = pd.addTo(now);
-        System.out.println("Now   : " + now);
-        System.out.println("Plus  : " + pd.toIsoString());
-        System.out.println("Result: " + later);
 
-        return pd.toIsoString();
+        ZonedDateTime now = ZonedDateTime.now();
+        ZonedDateTime before = pd.subtractFrom(now); // ⬅️ pakai subtract
+
+        System.out.println("Sekarang : " + now);
+        System.out.println("Minus   : " + pd.toIsoString());
+        System.out.println("Hasil   : " + before);
+
+        return "Sekarang: " + now + "\n"
+                + "Interval: " + pd.toIsoString() + "\n"
+                + "Hasil   : " + before;
     }
 
     // ====================== BEGIN: Parser interval ======================
