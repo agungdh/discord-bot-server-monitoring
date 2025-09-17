@@ -139,4 +139,8 @@ public class ErrorMinutesService {
     private static Instant truncateToSecond(Instant t) {
         return t.truncatedTo(ChronoUnit.SECONDS);
     }
+
+    public List<PrometheusClient.ResultPoint> errorMinutes(Instant start, Instant end) {
+        return queryErrorMinutes(start, end);
+    }
 }

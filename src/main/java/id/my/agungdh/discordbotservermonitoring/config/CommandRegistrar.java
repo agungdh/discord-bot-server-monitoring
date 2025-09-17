@@ -20,9 +20,10 @@ public class CommandRegistrar {
         var echo = Commands.slash("echo", "Balas teks")
                 .addOption(OptionType.STRING, "text", "Teks", true);
         var health = Commands.slash("health", "Tampilkan kesehatan/monitoring server");
+        var errors = Commands.slash("errors", "Tampilkan menit error utk beberapa periode");
 
         jda.updateCommands()
-                .addCommands(ping, echo, health)   // replace penuh daftar command global
+                .addCommands(ping, echo, health, errors)
                 .queue(
                         ok -> System.out.println("Synced GLOBAL commands"),
                         Throwable::printStackTrace
