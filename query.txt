@@ -1,39 +1,64 @@
-# 🔴 3 jam terakhir (guarded)
+# 🔴 Hari ini
+START=$(date -d "$(date +%F) 00:00:00" +%s)
+END=$(date +%s)
+RANGE=$((END - START))s
 curl -G "http://127.0.0.1:9090/api/v1/query" \
-  --data-urlencode 'query=sum by (instance, alias) (
-    sum_over_time( (
-      (sum_over_time((probe_success{job="blackbox_ping"} == bool 0)[1m:1s]) >= bool 5)
+  --data-urlencode "query=sum by (instance,alias)(
+    sum_over_time((
+      (sum_over_time((probe_success{job=\"blackbox_ping\"}==bool 0)[1m:1s])>=bool 5)
       and
-      (count_over_time(probe_success{job="blackbox_ping"}[1m:1s]) >= bool 5)
-    )[3h:1m] )
-  )'
+      (count_over_time(probe_success{job=\"blackbox_ping\"}[1m:1s])>=bool 5)
+    )[${RANGE}:1m] @ ${END})
+  )"
 
-# 🔴 1 hari terakhir (24 jam, guarded)
+# 🔴 Kemarin
+START=$(date -d "yesterday 00:00:00" +%s)
+END=$(date -d "today 00:00:00" +%s)
+RANGE=$((END - START))s
 curl -G "http://127.0.0.1:9090/api/v1/query" \
-  --data-urlencode 'query=sum by (instance, alias) (
-    sum_over_time( (
-      (sum_over_time((probe_success{job="blackbox_ping"} == bool 0)[1m:1s]) >= bool 5)
+  --data-urlencode "query=sum by (instance,alias)(
+    sum_over_time((
+      (sum_over_time((probe_success{job=\"blackbox_ping\"}==bool 0)[1m:1s])>=bool 5)
       and
-      (count_over_time(probe_success{job="blackbox_ping"}[1m:1s]) >= bool 5)
-    )[24h:1m] )
-  )'
+      (count_over_time(probe_success{job=\"blackbox_ping\"}[1m:1s])>=bool 5)
+    )[${RANGE}:1m] @ ${END})
+  )"
 
-# 🔴 2 hari terakhir (48 jam, guarded)
+# 🔴 Kemarin lusa
+START=$(date -d "2 days ago 00:00:00" +%s)
+END=$(date -d "1 day ago 00:00:00" +%s)
+RANGE=$((END - START))s
 curl -G "http://127.0.0.1:9090/api/v1/query" \
-  --data-urlencode 'query=sum by (instance, alias) (
-    sum_over_time( (
-      (sum_over_time((probe_success{job="blackbox_ping"} == bool 0)[1m:1s]) >= bool 5)
+  --data-urlencode "query=sum by (instance,alias)(
+    sum_over_time((
+      (sum_over_time((probe_success{job=\"blackbox_ping\"}==bool 0)[1m:1s])>=bool 5)
       and
-      (count_over_time(probe_success{job="blackbox_ping"}[1m:1s]) >= bool 5)
-    )[48h:1m] )
-  )'
+      (count_over_time(probe_success{job=\"blackbox_ping\"}[1m:1s])>=bool 5)
+    )[${RANGE}:1m] @ ${END})
+  )"
 
-# 🔴 3 hari terakhir (72 jam, guarded)
+# 🔴 1 minggu terakhir (7 hari lalu → sekarang)
+START=$(date -d "7 days ago 00:00:00" +%s)
+END=$(date +%s)
+RANGE=$((END - START))s
 curl -G "http://127.0.0.1:9090/api/v1/query" \
-  --data-urlencode 'query=sum by (instance, alias) (
-    sum_over_time( (
-      (sum_over_time((probe_success{job="blackbox_ping"} == bool 0)[1m:1s]) >= bool 5)
+  --data-urlencode "query=sum by (instance,alias)(
+    sum_over_time((
+      (sum_over_time((probe_success{job=\"blackbox_ping\"}==bool 0)[1m:1s])>=bool 5)
       and
-      (count_over_time(probe_success{job="blackbox_ping"}[1m:1s]) >= bool 5)
-    )[72h:1m] )
-  )'
+      (count_over_time(probe_success{job=\"blackbox_ping\"}[1m:1s])>=bool 5)
+    )[${RANGE}:1m] @ ${END})
+  )"
+
+# 🔴 2 minggu terakhir (14 hari lalu → sekarang)
+START=$(date -d "14 days ago 00:00:00" +%s)
+END=$(date +%s)
+RANGE=$((END - START))s
+curl -G "http://127.0.0.1:9090/api/v1/query" \
+  --data-urlencode "query=sum by (instance,alias)(
+    sum_over_time((
+      (sum_over_time((probe_success{job=\"blackbox_ping\"}==bool 0)[1m:1s])>=bool 5)
+      and
+      (count_over_time(probe_success{job=\"blackbox_ping\"}[1m:1s])>=bool 5)
+    )[${RANGE}:1m] @ ${END})
+  )"
