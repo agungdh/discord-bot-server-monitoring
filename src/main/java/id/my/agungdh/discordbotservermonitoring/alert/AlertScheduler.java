@@ -28,19 +28,29 @@ public class AlertScheduler {
     private final PrometheusClient prom;
     private final DiscordService discordService;
 
+    // ====== IDs tetap lewat env/properties (kalau mau, ini juga bisa dijadikan constant) ======
     @Value("${discord.guild-id}")
     String guildId;
     @Value("${discord.rto-alert-channel-id}")
     String channelId;
 
-    @Value("${prometheus.query}")
-    String query; // error/1m >=5 => alert
-    @Value("${polling.cooldownSec:60}")
-    long cooldownSec;
+    // ====== Pindahan dari env ke constant ======
+    // Query Prometheus
+    private static final String QUERY = """
+        sum by (instance, alias) (
+          count_over_time(probe_success{job="blackbox_ping"}[1m])
+          - sum_over_time(probe_success{job="blackbox_ping"}[1m])
+        )
+        """;
+
+    // Interval polling (ms) — jadi compile-time constant agar bisa dipakai di @Scheduled
+    private static final long POLL_INTERVAL_MS = 3000L;
+
+    // Cooldown alert (detik)
+    private static final long COOLDOWN_SEC = 60L;
+
     private GlobalDownSession session = null;
-    // "up jika 1 menit tidak ada yang down"
     private Instant clearSince = null;
-    // throttle untuk pesan alert supaya tidak spam
     private long lastGlobalAlertEpoch = 0L;
 
     private static String tsLocal(Instant ts) {
@@ -56,9 +66,10 @@ public class AlertScheduler {
         return String.format("%ds", s);
     }
 
-    @Scheduled(fixedDelayString = "${polling.intervalMs:3000}")
+    // pakai fixedDelay = constant (bukan fixedDelayString dari env)
+    @Scheduled(fixedDelay = POLL_INTERVAL_MS)
     public void tick() {
-        var results = prom.instantQuery(query);
+        var results = prom.instantQuery(QUERY);
         long nowEpoch = Instant.now().getEpochSecond();
         Instant now = Instant.ofEpochSecond(nowEpoch);
 
@@ -125,7 +136,7 @@ public class AlertScheduler {
         }
 
         // ===== GLOBAL ALERT MESSAGE =====
-        if (anyDown && nowEpoch - lastGlobalAlertEpoch >= cooldownSec) {
+        if (anyDown && nowEpoch - lastGlobalAlertEpoch >= COOLDOWN_SEC) {
             StringBuilder sb = new StringBuilder();
             sb.append("🛑 **GLOBAL PING ALERT**\n");
             sb.append("Waktu: ").append(tsLocal(now)).append("\n");
@@ -151,7 +162,7 @@ public class AlertScheduler {
 
         for (String inst : sess.instances) {
             String alias = sess.aliasByInstance.getOrDefault(inst, "");
-            var series = prom.rangeQuery(query, start, end, Duration.ofMinutes(1), inst, alias);
+            var series = prom.rangeQuery(QUERY, start, end, Duration.ofMinutes(1), inst, alias);
             String seriesName = alias.isBlank() ? inst : alias + " (" + inst + ")";
             for (PrometheusClient.RangePoint p : series) {
                 dataset.addValue(p.value(), seriesName, fmt.format(p.timestamp()));
