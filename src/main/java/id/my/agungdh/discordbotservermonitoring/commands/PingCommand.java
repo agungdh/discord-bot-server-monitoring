@@ -10,7 +10,9 @@ public class PingCommand implements SlashCommand {
 
 
     @Override
-    public String name() { return "ping"; }
+    public String name() {
+        return "ping";
+    }
 
 
     @Override

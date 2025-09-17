@@ -10,7 +10,9 @@ public class EchoCommand implements SlashCommand {
 
 
     @Override
-    public String name() { return "echo"; }
+    public String name() {
+        return "echo";
+    }
 
 
     @Override

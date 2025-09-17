@@ -30,7 +30,9 @@ public class PrometheusClient {
                 .build();
     }
 
-    /** Instant query (vector) — sudah dari kamu */
+    /**
+     * Instant query (vector) — sudah dari kamu
+     */
     public List<ResultPoint> instantQuery(String promql) {
         var form = new LinkedMultiValueMap<String, String>();
         form.add("query", promql);
@@ -53,14 +55,16 @@ public class PrometheusClient {
             if (value == null || value.size() < 2) continue;
 
             double v = Double.parseDouble(String.valueOf(value.get(1)));
-            String instance = Objects.toString(metric.getOrDefault("instance",""));
-            String alias = Objects.toString(metric.getOrDefault("alias",""));
+            String instance = Objects.toString(metric.getOrDefault("instance", ""));
+            String alias = Objects.toString(metric.getOrDefault("alias", ""));
             out.add(new ResultPoint(instance, alias, v));
         }
         return out;
     }
 
-    /** Range query (matrix) — PAKAI POST FORM-URLENCODED (bukan GET) */
+    /**
+     * Range query (matrix) — PAKAI POST FORM-URLENCODED (bukan GET)
+     */
     public List<RangePoint> rangeQuery(String promql,
                                        Instant start,
                                        Instant end,
@@ -70,8 +74,8 @@ public class PrometheusClient {
         var form = new LinkedMultiValueMap<String, String>();
         form.add("query", promql);
         form.add("start", Long.toString(start.getEpochSecond()));
-        form.add("end",   Long.toString(end.getEpochSecond()));
-        form.add("step",  step.toSeconds() + "s"); // contoh: "60s"
+        form.add("end", Long.toString(end.getEpochSecond()));
+        form.add("step", step.toSeconds() + "s"); // contoh: "60s"
 
         PrometheusRangeResponse resp = this.http.post()
                 .uri("/api/v1/query_range")
@@ -87,8 +91,8 @@ public class PrometheusClient {
         // pilih time series yang match persis instance + alias
         Optional<PromResultRange> match = resp.data().result().stream()
                 .filter(rr -> {
-                    String inst = Objects.toString(rr.metric().getOrDefault("instance",""));
-                    String als  = Objects.toString(rr.metric().getOrDefault("alias",""));
+                    String inst = Objects.toString(rr.metric().getOrDefault("instance", ""));
+                    String als = Objects.toString(rr.metric().getOrDefault("alias", ""));
                     return inst.equals(targetInstance) &&
                             als.equals(Objects.toString(targetAlias, ""));
                 })
@@ -101,23 +105,42 @@ public class PrometheusClient {
             // pair: [ ts, "value" ]
             if (pair == null || pair.size() < 2) continue;
             long epoch = (long) Double.parseDouble(String.valueOf(pair.get(0)));
-            double v   = Double.parseDouble(String.valueOf(pair.get(1)));
+            double v = Double.parseDouble(String.valueOf(pair.get(1)));
             out.add(new RangePoint(Instant.ofEpochSecond(epoch), v));
         }
         return out;
     }
 
-    /** Output sederhana yang dipakai di layer lain */
-    public record ResultPoint(String instance, String alias, double value) {}
-    public record RangePoint(Instant timestamp, double value) {}
+    /**
+     * Output sederhana yang dipakai di layer lain
+     */
+    public record ResultPoint(String instance, String alias, double value) {
+    }
 
-    /** ===== DTO untuk response Prometheus (instant) ===== */
-    public record PrometheusQueryResponse(String status, PromData data) {}
-    public record PromData(String resultType, List<PromResult> result) {}
-    public record PromResult(Map<String,String> metric, List<Object> value) {}
+    public record RangePoint(Instant timestamp, double value) {
+    }
 
-    /** ===== DTO untuk response Prometheus (range/matrix) ===== */
-    public record PrometheusRangeResponse(String status, PromDataRange data) {}
-    public record PromDataRange(String resultType, List<PromResultRange> result) {}
-    public record PromResultRange(Map<String,String> metric, List<List<Object>> values) {}
+    /**
+     * ===== DTO untuk response Prometheus (instant) =====
+     */
+    public record PrometheusQueryResponse(String status, PromData data) {
+    }
+
+    public record PromData(String resultType, List<PromResult> result) {
+    }
+
+    public record PromResult(Map<String, String> metric, List<Object> value) {
+    }
+
+    /**
+     * ===== DTO untuk response Prometheus (range/matrix) =====
+     */
+    public record PrometheusRangeResponse(String status, PromDataRange data) {
+    }
+
+    public record PromDataRange(String resultType, List<PromResultRange> result) {
+    }
+
+    public record PromResultRange(Map<String, String> metric, List<List<Object>> values) {
+    }
 }

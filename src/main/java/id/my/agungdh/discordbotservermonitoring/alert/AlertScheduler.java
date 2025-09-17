@@ -14,7 +14,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
-import java.time.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -26,26 +28,33 @@ public class AlertScheduler {
     private final PrometheusClient prom;
     private final DiscordService discordService;
 
-    @Value("${discord.guild-id}") String guildId;
-    @Value("${discord.rto-alert-channel-id}") String channelId;
+    @Value("${discord.guild-id}")
+    String guildId;
+    @Value("${discord.rto-alert-channel-id}")
+    String channelId;
 
-    @Value("${prometheus.query}") String query; // error/1m >=5 => alert
-    @Value("${polling.cooldownSec:60}") long cooldownSec;
-
-    // ===== Global down session =====
-    private static final class GlobalDownSession {
-        final Instant start;
-        final Set<String> instances = new HashSet<>();
-        final Map<String, String> aliasByInstance = new HashMap<>();
-        GlobalDownSession(Instant start) { this.start = start; }
-    }
+    @Value("${prometheus.query}")
+    String query; // error/1m >=5 => alert
+    @Value("${polling.cooldownSec:60}")
+    long cooldownSec;
     private GlobalDownSession session = null;
-
     // "up jika 1 menit tidak ada yang down"
     private Instant clearSince = null;
-
     // throttle untuk pesan alert supaya tidak spam
     private long lastGlobalAlertEpoch = 0L;
+
+    private static String tsLocal(Instant ts) {
+        return ts.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+    }
+
+    private static String humanDuration(Duration d) {
+        long h = d.toHours();
+        long m = d.toMinutesPart();
+        long s = d.toSecondsPart();
+        if (h > 0) return String.format("%dh %02dm %02ds", h, m, s);
+        if (m > 0) return String.format("%dm %02ds", m, s);
+        return String.format("%ds", s);
+    }
 
     @Scheduled(fixedDelayString = "${polling.intervalMs:3000}")
     public void tick() {
@@ -163,16 +172,14 @@ public class AlertScheduler {
         return tmp;
     }
 
-    private static String tsLocal(Instant ts) {
-        return ts.atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-    }
+    // ===== Global down session =====
+    private static final class GlobalDownSession {
+        final Instant start;
+        final Set<String> instances = new HashSet<>();
+        final Map<String, String> aliasByInstance = new HashMap<>();
 
-    private static String humanDuration(Duration d) {
-        long h = d.toHours();
-        long m = d.toMinutesPart();
-        long s = d.toSecondsPart();
-        if (h > 0) return String.format("%dh %02dm %02ds", h, m, s);
-        if (m > 0) return String.format("%dm %02ds", m, s);
-        return String.format("%ds", s);
+        GlobalDownSession(Instant start) {
+            this.start = start;
+        }
     }
 }

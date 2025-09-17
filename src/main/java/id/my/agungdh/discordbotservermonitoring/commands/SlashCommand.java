@@ -6,5 +6,6 @@ import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEve
 
 public interface SlashCommand {
     String name();
+
     void handle(SlashCommandInteractionEvent event);
 }

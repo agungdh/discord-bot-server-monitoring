@@ -2,14 +2,9 @@ package id.my.agungdh.discordbotservermonitoring.config;
 
 import jakarta.annotation.PostConstruct;
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import java.util.Arrays;
-import java.util.List;
 
 @Component
 public class CommandRegistrar {
@@ -21,8 +16,8 @@ public class CommandRegistrar {
 
     @PostConstruct
     public void registerGlobalCommands() {
-        var ping   = Commands.slash("ping", "Cek latensi bot");
-        var echo   = Commands.slash("echo", "Balas teks")
+        var ping = Commands.slash("ping", "Cek latensi bot");
+        var echo = Commands.slash("echo", "Balas teks")
                 .addOption(OptionType.STRING, "text", "Teks", true);
         var health = Commands.slash("health", "Tampilkan kesehatan/monitoring server");
 

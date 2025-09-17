@@ -8,7 +8,6 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
-
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
