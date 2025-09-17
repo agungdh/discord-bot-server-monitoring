@@ -28,16 +28,15 @@ public class ErrorsCommand implements SlashCommand {
 
     @Override
     public void handle(SlashCommandInteractionEvent event) {
-        event.deferReply(true).queue(); // ephemeral
+        // PUBLIC reply (bisa dilihat semua orang)
+        event.deferReply(false).queue();
 
-        // Ambil semua periode
-        var today    = svc.errorMinutesToday();
-        var yday     = svc.errorMinutesYesterday();
-        var d2ago    = svc.errorMinutesTwoDaysAgo();
-        var w1       = svc.errorMinutesLastWeekUntilNow();
-        var w2       = svc.errorMinutesLast2WeeksUntilNow();
+        var today = svc.errorMinutesToday();
+        var yday  = svc.errorMinutesYesterday();
+        var d2ago = svc.errorMinutesTwoDaysAgo();
+        var w1    = svc.errorMinutesLastWeekUntilNow();
+        var w2    = svc.errorMinutesLast2WeeksUntilNow();
 
-        // Waktu untuk caption (pakai zona host)
         ZoneId zone = ZoneId.systemDefault();
         Instant now = Instant.now();
         Instant startToday = LocalDate.now(zone).atStartOfDay(zone).toInstant();
@@ -46,46 +45,26 @@ public class ErrorsCommand implements SlashCommand {
         Instant startW1    = LocalDate.now(zone).minusDays(7).atStartOfDay(zone).toInstant();
         Instant startW2    = LocalDate.now(zone).minusDays(14).atStartOfDay(zone).toInstant();
 
-        // Bangun embed
         EmbedBuilder eb = new EmbedBuilder();
         eb.setTitle("📊 Error Minutes (≥5 gagal/menit, guarded)");
-        eb.setDescription("Menunjukkan jumlah **menit error** per target.\n" +
-                "Zona waktu: **" + zone + "**");
+        eb.setDescription("Zona waktu: **" + zone + "**");
 
-        eb.addField("Hari ini",
-                summarize(startToday, now, today),
-                false);
-
-        eb.addField("Kemarin",
-                summarize(startYday, startToday, yday),
-                false);
-
-        eb.addField("Kemarin lusa",
-                summarize(startD2, startYday, d2ago),
-                false);
-
-        eb.addField("1 minggu terakhir",
-                summarize(startW1, now, w1),
-                false);
-
-        eb.addField("2 minggu terakhir",
-                summarize(startW2, now, w2),
-                false);
+        eb.addField("Hari ini",        summarize(startToday, now, today), false);
+        eb.addField("Kemarin",         summarize(startYday,  startToday, yday), false);
+        eb.addField("Kemarin lusa",    summarize(startD2,    startYday,  d2ago), false);
+        eb.addField("1 minggu terakhir", summarize(startW1,  now, w1), false);
+        eb.addField("2 minggu terakhir", summarize(startW2,  now, w2), false);
 
         event.getHook().editOriginalEmbeds(eb.build()).queue();
     }
 
     private String summarize(Instant start, Instant end, List<PrometheusClient.ResultPoint> points) {
         var fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
-
         long total = Math.round(points.stream().mapToDouble(PrometheusClient.ResultPoint::value).sum());
-
         String header = "**Range:** " + fmt.format(start) + " → " + fmt.format(end)
                 + "\n**Total:** " + total + " menit";
 
-        if (points.isEmpty()) {
-            return header + "\n*(no data)*";
-        }
+        if (points.isEmpty()) return header + "\n*(no data)*";
 
         String body = points.stream()
                 .sorted(Comparator.comparingDouble(PrometheusClient.ResultPoint::value).reversed())
@@ -95,7 +74,6 @@ public class ErrorsCommand implements SlashCommand {
                     return "• **" + alias + "** (`" + p.instance() + "`): " + mins + " m";
                 })
                 .collect(Collectors.joining("\n"));
-
         return header + "\n" + body;
     }
 }
