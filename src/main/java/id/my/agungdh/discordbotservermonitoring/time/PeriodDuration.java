@@ -1,6 +1,8 @@
 package id.my.agungdh.discordbotservermonitoring.time;
 
-import java.time.*;
+import java.time.Duration;
+import java.time.Period;
+import java.time.ZonedDateTime;
 
 public final class PeriodDuration {
     private final Period period;
@@ -18,24 +20,36 @@ public final class PeriodDuration {
         );
     }
 
-    public Period period() { return period; }
-    public Duration duration() { return duration; }
+    public Period period() {
+        return period;
+    }
 
-    public ZonedDateTime addTo(ZonedDateTime t) { return t.plus(period).plus(duration); }
-    public ZonedDateTime subtractFrom(ZonedDateTime t) { return t.minus(period).minus(duration); }
+    public Duration duration() {
+        return duration;
+    }
 
-    /** Representasi ISO gabungan: P..Y..M..DT..H..M..S (hanya komponen non-zero). */
+    public ZonedDateTime addTo(ZonedDateTime t) {
+        return t.plus(period).plus(duration);
+    }
+
+    public ZonedDateTime subtractFrom(ZonedDateTime t) {
+        return t.minus(period).minus(duration);
+    }
+
+    /**
+     * Representasi ISO gabungan: P..Y..M..DT..H..M..S (hanya komponen non-zero).
+     */
     public String toIsoString() {
         StringBuilder sb = new StringBuilder("P");
-        if (period.getYears() != 0)  sb.append(period.getYears()).append("Y");
+        if (period.getYears() != 0) sb.append(period.getYears()).append("Y");
         if (period.getMonths() != 0) sb.append(period.getMonths()).append("M");
-        if (period.getDays() != 0)   sb.append(period.getDays()).append("D");
+        if (period.getDays() != 0) sb.append(period.getDays()).append("D");
         if (!duration.isZero()) {
             sb.append("T");
-            long hours   = duration.toHoursPart();
-            int minutes  = duration.toMinutesPart();
-            int seconds  = duration.toSecondsPart();
-            if (hours != 0)   sb.append(hours).append("H");
+            long hours = duration.toHoursPart();
+            int minutes = duration.toMinutesPart();
+            int seconds = duration.toSecondsPart();
+            if (hours != 0) sb.append(hours).append("H");
             if (minutes != 0) sb.append(minutes).append("M");
             if (seconds != 0) sb.append(seconds).append("S");
             if (sb.charAt(sb.length() - 1) == 'T') sb.setLength(sb.length() - 1);
@@ -44,5 +58,8 @@ public final class PeriodDuration {
         return sb.toString();
     }
 
-    @Override public String toString() { return toIsoString(); }
+    @Override
+    public String toString() {
+        return toIsoString();
+    }
 }

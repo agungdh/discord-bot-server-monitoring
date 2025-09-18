@@ -16,12 +16,12 @@ public class IntervalService {
     /**
      * Parse string interval Indonesia → PeriodDuration (Y/M/D + H/M/S)
      * Alias:
-     *  tahun: tahun, th, thn, y, year, years
-     *  bulan: bulan, bln, mo, month, months
-     *  hari : hari, hr, d, day, days
-     *  jam  : jam, j, h, hour, hours
-     *  menit: menit, min, mnt, m, minute, minutes   (CATATAN: 'm' = menit)
-     *  detik: detik, dtk, sec, s, second, seconds
+     * tahun: tahun, th, thn, y, year, years
+     * bulan: bulan, bln, mo, month, months
+     * hari : hari, hr, d, day, days
+     * jam  : jam, j, h, hour, hours
+     * menit: menit, min, mnt, m, minute, minutes   (CATATAN: 'm' = menit)
+     * detik: detik, dtk, sec, s, second, seconds
      */
     public PeriodDuration parseInterval(String input) {
         if (input == null || input.isBlank()) {
@@ -39,18 +39,57 @@ public class IntervalService {
             String unit = m.group(2);
 
             switch (unit) {
-                case "tahun": case "th": case "thn": case "y": case "year": case "years":
-                    years += val; hit++; break;
-                case "bulan": case "bln": case "mo": case "month": case "months":
-                    months += val; hit++; break;
-                case "hari": case "hr": case "d": case "day": case "days":
-                    days += val; hit++; break;
-                case "jam": case "j": case "h": case "hour": case "hours":
-                    hours += val; hit++; break;
-                case "menit": case "min": case "mnt": case "m": case "minute": case "minutes":
-                    minutes += val; hit++; break;
-                case "detik": case "dtk": case "sec": case "s": case "second": case "seconds":
-                    seconds += val; hit++; break;
+                case "tahun":
+                case "th":
+                case "thn":
+                case "y":
+                case "year":
+                case "years":
+                    years += val;
+                    hit++;
+                    break;
+                case "bulan":
+                case "bln":
+                case "mo":
+                case "month":
+                case "months":
+                    months += val;
+                    hit++;
+                    break;
+                case "hari":
+                case "hr":
+                case "d":
+                case "day":
+                case "days":
+                    days += val;
+                    hit++;
+                    break;
+                case "jam":
+                case "j":
+                case "h":
+                case "hour":
+                case "hours":
+                    hours += val;
+                    hit++;
+                    break;
+                case "menit":
+                case "min":
+                case "mnt":
+                case "m":
+                case "minute":
+                case "minutes":
+                    minutes += val;
+                    hit++;
+                    break;
+                case "detik":
+                case "dtk":
+                case "sec":
+                case "s":
+                case "second":
+                case "seconds":
+                    seconds += val;
+                    hit++;
+                    break;
                 default:
                     throw new IllegalArgumentException("Satuan tidak dikenali: " + unit);
             }
@@ -66,12 +105,16 @@ public class IntervalService {
         return PeriodDuration.of((int) years, (int) months, (int) days, (int) hours, (int) minutes, (int) seconds);
     }
 
-    /** Utility kecil: kurangi dari 'now' (zona waktu sistem). */
+    /**
+     * Utility kecil: kurangi dari 'now' (zona waktu sistem).
+     */
     public ZonedDateTime minusFromNow(PeriodDuration pd) {
         return pd.subtractFrom(ZonedDateTime.now());
     }
 
-    /** Utility kecil: tambah ke 'now' (kalau butuh kedepan). */
+    /**
+     * Utility kecil: tambah ke 'now' (kalau butuh kedepan).
+     */
     public ZonedDateTime plusFromNow(PeriodDuration pd) {
         return pd.addTo(ZonedDateTime.now());
     }

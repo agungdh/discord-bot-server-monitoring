@@ -1,8 +1,8 @@
 package id.my.agungdh.discordbotservermonitoring.controller;
 
 import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.ErrorMinutesSummaryDTO;
-import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.TargetErrorDTO;
 import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.MetricsDTO;
+import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.TargetErrorDTO;
 import id.my.agungdh.discordbotservermonitoring.client.PrometheusClient;
 import id.my.agungdh.discordbotservermonitoring.service.DiscordService;
 import id.my.agungdh.discordbotservermonitoring.service.ErrorMinutesService;
@@ -11,7 +11,10 @@ import id.my.agungdh.discordbotservermonitoring.time.IntervalService;
 import id.my.agungdh.discordbotservermonitoring.time.PeriodDuration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.*;
 import java.util.List;
@@ -27,6 +30,24 @@ public class MainController {
 
     @Value("${spring.application.name}")
     String name;
+
+    private static ZoneId zone() {
+        return ZoneId.systemDefault();
+    }
+
+    private static Instant startOfToday() {
+        return LocalDate.now(zone()).atStartOfDay(zone()).toInstant();
+    }
+
+    private static Instant startOfYesterday() {
+        return LocalDate.now(zone()).minusDays(1).atStartOfDay(zone()).toInstant();
+    }
+
+    // ========================= ERRORS (menit error) =========================
+
+    private static Instant startOfNDaysAgo(int days) {
+        return LocalDate.now(zone()).minusDays(days).atStartOfDay(zone()).toInstant();
+    }
 
     @GetMapping
     public String index() {
@@ -51,13 +72,11 @@ public class MainController {
                 + "Hasil   : " + before;
     }
 
-    // ========================= ERRORS (menit error) =========================
-
     @GetMapping("/errors/today")
     public ErrorMinutesSummaryDTO errorsToday() {
         var points = errorMinutesService.errorMinutesToday();
         var start = startOfToday();
-        var end   = Instant.now();
+        var end = Instant.now();
         return buildSummary("today", start, end, points);
     }
 
@@ -65,7 +84,7 @@ public class MainController {
     public ErrorMinutesSummaryDTO errorsYesterday() {
         var points = errorMinutesService.errorMinutesYesterday();
         var start = startOfYesterday();
-        var end   = startOfToday();
+        var end = startOfToday();
         return buildSummary("yesterday", start, end, points);
     }
 
@@ -73,16 +92,18 @@ public class MainController {
     public ErrorMinutesSummaryDTO errorsTwoDaysAgo() {
         var points = errorMinutesService.errorMinutesTwoDaysAgo();
         var start = startOfNDaysAgo(2);
-        var end   = startOfNDaysAgo(1);
+        var end = startOfNDaysAgo(1);
         return buildSummary("two-days-ago", start, end, points);
     }
+
+    // ========================= Helpers =========================
 
     // 1 minggu terakhir: H-7 00:00 → sekarang
     @GetMapping("/errors/last-week")
     public ErrorMinutesSummaryDTO errorsLastWeekUntilNow() {
         var points = errorMinutesService.errorMinutesLastWeekUntilNow();
         var start = startOfNDaysAgo(7);
-        var end   = Instant.now();
+        var end = Instant.now();
         return buildSummary("last-week-until-now", start, end, points);
     }
 
@@ -91,7 +112,7 @@ public class MainController {
     public ErrorMinutesSummaryDTO errorsLast2WeeksUntilNow() {
         var points = errorMinutesService.errorMinutesLast2WeeksUntilNow();
         var start = startOfNDaysAgo(14);
-        var end   = Instant.now();
+        var end = Instant.now();
         return buildSummary("last-2weeks-until-now", start, end, points);
     }
 
@@ -103,7 +124,7 @@ public class MainController {
         ZonedDateTime nowZ = ZonedDateTime.now();
         ZonedDateTime thenZ = pd.subtractFrom(nowZ).with(LocalTime.MIDNIGHT); // H-N 00:00 lokal
         Instant start = thenZ.toInstant();
-        Instant end   = nowZ.toInstant();
+        Instant end = nowZ.toInstant();
 
         // langsung reuse service yang existing
         var points = fetchByAbsoluteRange(start, end);
@@ -117,12 +138,10 @@ public class MainController {
             @RequestParam("end") String endIso
     ) {
         Instant start = ZonedDateTime.parse(startIso).toInstant();
-        Instant end   = ZonedDateTime.parse(endIso).toInstant();
+        Instant end = ZonedDateTime.parse(endIso).toInstant();
         var points = fetchByAbsoluteRange(start, end);
         return buildSummary("custom", start, end, points);
     }
-
-    // ========================= Helpers =========================
 
     private ErrorMinutesSummaryDTO buildSummary(String period, Instant start, Instant end,
                                                 List<PrometheusClient.ResultPoint> points) {
@@ -162,18 +181,5 @@ public class MainController {
         } catch (Exception e) {
             throw new RuntimeException("Failed to query error minutes by range", e);
         }
-    }
-
-    private static ZoneId zone() {
-        return ZoneId.systemDefault();
-    }
-    private static Instant startOfToday() {
-        return LocalDate.now(zone()).atStartOfDay(zone()).toInstant();
-    }
-    private static Instant startOfYesterday() {
-        return LocalDate.now(zone()).minusDays(1).atStartOfDay(zone()).toInstant();
-    }
-    private static Instant startOfNDaysAgo(int days) {
-        return LocalDate.now(zone()).minusDays(days).atStartOfDay(zone()).toInstant();
     }
 }

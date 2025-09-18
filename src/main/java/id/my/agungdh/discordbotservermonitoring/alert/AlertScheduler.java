@@ -24,31 +24,25 @@ import java.util.*;
 @RequiredArgsConstructor
 public class AlertScheduler {
     private static final Logger log = LoggerFactory.getLogger(AlertScheduler.class);
-
+    // ====== Pindahan dari env ke constant ======
+    // Query Prometheus
+    private static final String QUERY = """
+            sum by (instance, alias) (
+              count_over_time(probe_success{job="blackbox_ping"}[1m])
+              - sum_over_time(probe_success{job="blackbox_ping"}[1m])
+            )
+            """;
+    // Interval polling (ms) — jadi compile-time constant agar bisa dipakai di @Scheduled
+    private static final long POLL_INTERVAL_MS = 3000L;
+    // Cooldown alert (detik)
+    private static final long COOLDOWN_SEC = 60L;
     private final PrometheusClient prom;
     private final DiscordService discordService;
-
     // ====== IDs tetap lewat env/properties (kalau mau, ini juga bisa dijadikan constant) ======
     @Value("${discord.guild-id}")
     String guildId;
     @Value("${discord.rto-alert-channel-id}")
     String channelId;
-
-    // ====== Pindahan dari env ke constant ======
-    // Query Prometheus
-    private static final String QUERY = """
-        sum by (instance, alias) (
-          count_over_time(probe_success{job="blackbox_ping"}[1m])
-          - sum_over_time(probe_success{job="blackbox_ping"}[1m])
-        )
-        """;
-
-    // Interval polling (ms) — jadi compile-time constant agar bisa dipakai di @Scheduled
-    private static final long POLL_INTERVAL_MS = 3000L;
-
-    // Cooldown alert (detik)
-    private static final long COOLDOWN_SEC = 60L;
-
     private GlobalDownSession session = null;
     private Instant clearSince = null;
     private long lastGlobalAlertEpoch = 0L;

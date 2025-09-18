@@ -6,7 +6,10 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import org.springframework.stereotype.Component;
 
-import java.time.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -37,18 +40,18 @@ public class ErrorsCommand implements SlashCommand {
         var h6 = svc.errorMinutesLastHours(6);
 
         var today = svc.errorMinutesToday();
-        var yday  = svc.errorMinutesYesterday();
+        var yday = svc.errorMinutesYesterday();
         var d2ago = svc.errorMinutesTwoDaysAgo();
-        var w1    = svc.errorMinutesLastWeekUntilNow();
-        var w2    = svc.errorMinutesLast2WeeksUntilNow();
+        var w1 = svc.errorMinutesLastWeekUntilNow();
+        var w2 = svc.errorMinutesLast2WeeksUntilNow();
 
         ZoneId zone = ZoneId.systemDefault();
         Instant now = Instant.now();
         Instant startToday = LocalDate.now(zone).atStartOfDay(zone).toInstant();
-        Instant startYday  = LocalDate.now(zone).minusDays(1).atStartOfDay(zone).toInstant();
-        Instant startD2    = LocalDate.now(zone).minusDays(2).atStartOfDay(zone).toInstant();
-        Instant startW1    = LocalDate.now(zone).minusDays(7).atStartOfDay(zone).toInstant();
-        Instant startW2    = LocalDate.now(zone).minusDays(14).atStartOfDay(zone).toInstant();
+        Instant startYday = LocalDate.now(zone).minusDays(1).atStartOfDay(zone).toInstant();
+        Instant startD2 = LocalDate.now(zone).minusDays(2).atStartOfDay(zone).toInstant();
+        Instant startW1 = LocalDate.now(zone).minusDays(7).atStartOfDay(zone).toInstant();
+        Instant startW2 = LocalDate.now(zone).minusDays(14).atStartOfDay(zone).toInstant();
 
         EmbedBuilder eb = new EmbedBuilder();
         eb.setTitle("📊 Error Minutes (≥5 gagal/menit, guarded)");
@@ -59,11 +62,11 @@ public class ErrorsCommand implements SlashCommand {
         eb.addField("3 jam terakhir", summarize(now.minus(Duration.ofHours(3)), now, h3), false);
         eb.addField("6 jam terakhir", summarize(now.minus(Duration.ofHours(6)), now, h6), false);
 
-        eb.addField("Hari ini",        summarize(startToday, now, today), false);
-        eb.addField("Kemarin",         summarize(startYday,  startToday, yday), false);
-        eb.addField("Kemarin lusa",    summarize(startD2,    startYday,  d2ago), false);
-        eb.addField("1 minggu terakhir", summarize(startW1,  now, w1), false);
-        eb.addField("2 minggu terakhir", summarize(startW2,  now, w2), false);
+        eb.addField("Hari ini", summarize(startToday, now, today), false);
+        eb.addField("Kemarin", summarize(startYday, startToday, yday), false);
+        eb.addField("Kemarin lusa", summarize(startD2, startYday, d2ago), false);
+        eb.addField("1 minggu terakhir", summarize(startW1, now, w1), false);
+        eb.addField("2 minggu terakhir", summarize(startW2, now, w2), false);
 
         event.getHook().editOriginalEmbeds(eb.build()).queue();
     }
