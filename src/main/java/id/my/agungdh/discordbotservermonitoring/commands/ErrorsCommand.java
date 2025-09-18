@@ -31,6 +31,11 @@ public class ErrorsCommand implements SlashCommand {
         // PUBLIC reply (bisa dilihat semua orang)
         event.deferReply(false).queue();
 
+        var h1 = svc.errorMinutesLastHours(1);
+        var h2 = svc.errorMinutesLastHours(2);
+        var h3 = svc.errorMinutesLastHours(3);
+        var h6 = svc.errorMinutesLastHours(6);
+
         var today = svc.errorMinutesToday();
         var yday  = svc.errorMinutesYesterday();
         var d2ago = svc.errorMinutesTwoDaysAgo();
@@ -48,6 +53,11 @@ public class ErrorsCommand implements SlashCommand {
         EmbedBuilder eb = new EmbedBuilder();
         eb.setTitle("📊 Error Minutes (≥5 gagal/menit, guarded)");
         eb.setDescription("Zona waktu: **" + zone + "**");
+
+        eb.addField("1 jam terakhir", summarize(now.minus(Duration.ofHours(1)), now, h1), false);
+        eb.addField("2 jam terakhir", summarize(now.minus(Duration.ofHours(2)), now, h2), false);
+        eb.addField("3 jam terakhir", summarize(now.minus(Duration.ofHours(3)), now, h3), false);
+        eb.addField("6 jam terakhir", summarize(now.minus(Duration.ofHours(6)), now, h6), false);
 
         eb.addField("Hari ini",        summarize(startToday, now, today), false);
         eb.addField("Kemarin",         summarize(startYday,  startToday, yday), false);

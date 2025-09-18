@@ -143,4 +143,10 @@ public class ErrorMinutesService {
     public List<PrometheusClient.ResultPoint> errorMinutes(Instant start, Instant end) {
         return queryErrorMinutes(start, end);
     }
+
+    public List<PrometheusClient.ResultPoint> errorMinutesLastHours(int hours) {
+        Instant end = Instant.now();
+        Instant start = end.minus(Duration.ofHours(hours));
+        return queryErrorMinutes(start, end);
+    }
 }
