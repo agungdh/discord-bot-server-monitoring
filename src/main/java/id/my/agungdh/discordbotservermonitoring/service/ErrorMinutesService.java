@@ -149,4 +149,35 @@ public class ErrorMinutesService {
         Instant start = end.minus(Duration.ofHours(hours));
         return queryErrorMinutes(start, end);
     }
+
+    public long errorMinutesAnyDown(Instant start, Instant end) {
+        long rangeSec = Duration.between(start, end).getSeconds();
+        if (rangeSec <= 0) return 0L;
+
+        // label metric sesuai konfigurasi
+        String jobLabel = String.format("probe_success{job=\"%s\"}", blackboxJob);
+
+        // indikator "down per menit per target" (guarded)
+        String perMinuteDown = """
+        (
+          (sum_over_time((%s == bool 0)[1m:%s]) >= bool %d)
+          and
+          (count_over_time(%s[1m:%s]) >= bool %d)
+        )
+        """.formatted(
+                jobLabel, INNER_RESOLUTION, THRESHOLD_FAILS_PER_MIN,
+                jobLabel, INNER_RESOLUTION, MIN_SAMPLES_PER_MIN
+        );
+
+        // OR antar target: pakai max by () untuk collapse semua label ⇒ 1 kalau ada target manapun yang down
+        String promql = """
+        sum_over_time(
+          ( max by () ( %s ) )[%ds:%s] @ %d
+        )
+        """.formatted(perMinuteDown, rangeSec, MINUTE_STEP, end.getEpochSecond());
+
+        var res = prometheus.instantQuery(promql);
+        if (res.isEmpty()) return 0L;
+        return Math.round(res.get(0).value());
+    }
 }

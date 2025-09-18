@@ -70,9 +70,12 @@ public class ErrorsCommand implements SlashCommand {
 
     private String summarize(Instant start, Instant end, List<PrometheusClient.ResultPoint> points) {
         var fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
-        long total = Math.round(points.stream().mapToDouble(PrometheusClient.ResultPoint::value).sum());
+
+        // 🔹 total unik menit down (any target)
+        long uniqueTotal = svc.errorMinutesAnyDown(start, end);
+
         String header = "**Range:** " + fmt.format(start) + " → " + fmt.format(end)
-                + "\n**Total:** " + formatMinutes(total);
+                + "\n**Total:** " + formatMinutes(uniqueTotal);
 
         if (points.isEmpty()) return header + "\n*(no data)*";
 
@@ -80,7 +83,7 @@ public class ErrorsCommand implements SlashCommand {
                 .sorted(Comparator.comparingDouble(PrometheusClient.ResultPoint::value).reversed())
                 .map(p -> {
                     String alias = (p.alias() == null || p.alias().isBlank()) ? "-" : p.alias();
-                    long mins = Math.round(p.value());
+                    long mins = Math.round(p.value()); // per target tetap tampil detil
                     return "• **" + alias + "** (`" + p.instance() + "`): " + formatMinutes(mins);
                 })
                 .collect(Collectors.joining("\n"));
