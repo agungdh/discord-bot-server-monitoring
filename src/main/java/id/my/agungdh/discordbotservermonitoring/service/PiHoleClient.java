@@ -1,5 +1,6 @@
 package id.my.agungdh.discordbotservermonitoring.service;
 
+import id.my.agungdh.discordbotservermonitoring.DTO.BlockListResponse;
 import id.my.agungdh.discordbotservermonitoring.DTO.SummaryResponse;
 import id.my.agungdh.discordbotservermonitoring.config.PiHoleProperties;
 import id.my.agungdh.discordbotservermonitoring.DTO.SessionWrapper;
@@ -101,5 +102,17 @@ public class PiHoleClient {
 
         return restTemplate.exchange(url, HttpMethod.GET,
                 new HttpEntity<>(headers), SummaryResponse.class).getBody();
+    }
+
+    public BlockListResponse getBlockLists() {
+        ensureLoggedIn();
+        String url = props.getBaseUrl() + "/api/lists/?type=block";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
+        headers.add("sid", sessionRef.get().sid());
+
+        return restTemplate.exchange(url, HttpMethod.GET,
+                new HttpEntity<>(headers), BlockListResponse.class).getBody();
     }
 }

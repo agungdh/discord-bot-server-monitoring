@@ -5,6 +5,7 @@ import id.my.agungdh.discordbotservermonitoring.service.MetricsService;
 import id.my.agungdh.discordbotservermonitoring.util.MessageUtils;
 import id.my.agungdh.discordbotservermonitoring.DTO.SummaryResponse;
 import id.my.agungdh.discordbotservermonitoring.DTO.TopDomainsResponse;
+import id.my.agungdh.discordbotservermonitoring.DTO.BlockListResponse;
 import id.my.agungdh.discordbotservermonitoring.service.PiHoleClient;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -39,7 +40,7 @@ public class HealthCommand implements SlashCommand {
         // Agar tidak timeout 3 detik
         event.deferReply()/* .setEphemeral(true) */.queue(hook -> {
 
-            // Jalan paralel: metrics server & Pi-hole data
+            // Jalan paralel: metrics + semua data Pi-hole
             CompletableFuture<MetricsDTO> metricsFut = metricsService.snapshotAsync(true)
                     .orTimeout(10, TimeUnit.SECONDS);
 
@@ -55,7 +56,11 @@ public class HealthCommand implements SlashCommand {
                 try { return piHoleClient.getTopBlockedDomains(10); } catch (Exception e) { return null; }
             }).orTimeout(5, TimeUnit.SECONDS);
 
-            CompletableFuture.allOf(metricsFut, piholeSummaryFut, topDomainsFut, topBlockedFut)
+            CompletableFuture<BlockListResponse> blockListsFut = CompletableFuture.supplyAsync(() -> {
+                try { return piHoleClient.getBlockLists(); } catch (Exception e) { return null; }
+            }).orTimeout(5, TimeUnit.SECONDS);
+
+            CompletableFuture.allOf(metricsFut, piholeSummaryFut, topDomainsFut, topBlockedFut, blockListsFut)
                     .whenComplete((ignored, err) -> {
                         if (err != null) {
                             hook.editOriginal("⚠️ Gagal ambil data: " + err.getMessage()).queue();
@@ -66,6 +71,7 @@ public class HealthCommand implements SlashCommand {
                         SummaryResponse s = piholeSummaryFut.getNow(null);
                         TopDomainsResponse td = topDomainsFut.getNow(null);
                         TopDomainsResponse tb = topBlockedFut.getNow(null);
+                        BlockListResponse bl = blockListsFut.getNow(null);
 
                         if (m == null) {
                             hook.editOriginal("⚠️ Gagal ambil metrik server.").queue();
@@ -127,9 +133,10 @@ public class HealthCommand implements SlashCommand {
                                             "Blocked: `" + blockedQ + "` (" + MessageUtils.round2(pctBlocked) + "%)",
                                     true);
 
+                            // ===== Gravity (relative time) =====
                             if (s.gravity() != null) {
                                 long epoch = s.gravity().last_update();
-                                String relative = "<t:" + epoch + ":R>";  // Discord render jadi "x minutes ago"
+                                String relative = "<t:" + epoch + ":R>";
                                 eb.addField("Gravity",
                                         "Domains blocked: `" + s.gravity().domains_being_blocked() + "`\n" +
                                                 "Last update: " + relative,
@@ -173,7 +180,19 @@ public class HealthCommand implements SlashCommand {
                             }
                         }
 
-                        // ===== 4) Storage & Network pagination (dipotong 1800 char) =====
+                        // ===== 4) Block Lists (type=block) =====
+                        if (bl != null && bl.lists() != null && !bl.lists().isEmpty()) {
+                            StringBuilder sb = new StringBuilder();
+                            for (var item : bl.lists()) {
+                                String updRel = "<t:" + item.date_updated() + ":R>";
+                                sb.append("• ").append(MessageUtils.safe(item.address()))
+                                        .append(" → `").append(item.number()).append("` entries")
+                                        .append(" (upd ").append(updRel).append(")\n");
+                            }
+                            eb.addField("Block Lists", sb.toString(), false);
+                        }
+
+                        // ===== 5) Storage & Network pagination (dipotong 1800 char) =====
                         List<String> diskParts = new ArrayList<>();
                         if (m.storage() != null && !m.storage().isEmpty()) {
                             StringBuilder all = new StringBuilder(4096);
