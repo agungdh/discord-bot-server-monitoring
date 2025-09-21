@@ -37,5 +37,6 @@ public class PiHoleController {
         return ResponseEntity.ok(client.getSummary());
     }
 
-    public record PasswordReq(String password) {}
+    public record PasswordReq(String password) {
+    }
 }

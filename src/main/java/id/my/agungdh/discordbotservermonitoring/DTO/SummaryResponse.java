@@ -19,15 +19,18 @@ public record SummaryResponse(
             Map<String, Long> types,
             Map<String, Long> status,
             Map<String, Long> replies
-    ) {}
+    ) {
+    }
 
     public record Clients(
             int active,
             int total
-    ) {}
+    ) {
+    }
 
     public record Gravity(
             long domains_being_blocked,
             long last_update
-    ) {}
+    ) {
+    }
 }

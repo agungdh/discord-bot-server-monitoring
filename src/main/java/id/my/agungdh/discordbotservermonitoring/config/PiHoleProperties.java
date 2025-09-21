@@ -10,12 +10,27 @@ public class PiHoleProperties {
     private String password;
     private long reloginIntervalMs = 1_500_000L; // default 25 menit
 
-    public String getBaseUrl() { return baseUrl; }
-    public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
+    public String getBaseUrl() {
+        return baseUrl;
+    }
 
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
+    public void setBaseUrl(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
 
-    public long getReloginIntervalMs() { return reloginIntervalMs; }
-    public void setReloginIntervalMs(long reloginIntervalMs) { this.reloginIntervalMs = reloginIntervalMs; }
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public long getReloginIntervalMs() {
+        return reloginIntervalMs;
+    }
+
+    public void setReloginIntervalMs(long reloginIntervalMs) {
+        this.reloginIntervalMs = reloginIntervalMs;
+    }
 }

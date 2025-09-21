@@ -8,5 +8,6 @@ public record SessionWrapper(Session session, double took) {
             String csrf,
             long validity,
             String message
-    ) {}
+    ) {
+    }
 }

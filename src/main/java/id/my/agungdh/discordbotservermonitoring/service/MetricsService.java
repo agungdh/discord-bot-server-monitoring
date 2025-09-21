@@ -34,13 +34,24 @@ public class MetricsService {
 
     // util aman untuk panggil getter NIO yang kadang lempar UnsupportedOperationException di native
     private static long safeLong(LongSupplierThrows action) {
-        try { return action.getAsLong(); } catch (Throwable t) { return 0L; }
+        try {
+            return action.getAsLong();
+        } catch (Throwable t) {
+            return 0L;
+        }
     }
 
-    private static double round2(double v) { return Math.round(v * 100.0) / 100.0; }
-    private static String safe(String s) { return s == null ? "" : s; }
+    private static double round2(double v) {
+        return Math.round(v * 100.0) / 100.0;
+    }
 
-    /** Panggilan synchronous (dipakai internal oleh async). */
+    private static String safe(String s) {
+        return s == null ? "" : s;
+    }
+
+    /**
+     * Panggilan synchronous (dipakai internal oleh async).
+     */
     public MetricsDTO snapshot(boolean includeNetwork) {
         // ===== CPU % (lindungi update ticks biar tidak balapan antar request) =====
         double cpuUsage;
@@ -102,7 +113,8 @@ public class MetricsService {
                         name, type, tot, usable, round2(usedPct)
                 ));
             }
-        } catch (Exception ignore) {}
+        } catch (Exception ignore) {
+        }
 
         // ===== Network (opsional) =====
         List<NetworkDTO> nets = List.of();
@@ -145,7 +157,9 @@ public class MetricsService {
         );
     }
 
-    /** Versi async untuk dipakai handler Discord. */
+    /**
+     * Versi async untuk dipakai handler Discord.
+     */
     @Async("commandExecutor")
     public CompletableFuture<MetricsDTO> snapshotAsync(boolean includeNetwork) {
         try {
@@ -156,5 +170,7 @@ public class MetricsService {
     }
 
     @FunctionalInterface
-    private interface LongSupplierThrows { long getAsLong() throws Exception; }
+    private interface LongSupplierThrows {
+        long getAsLong() throws Exception;
+    }
 }

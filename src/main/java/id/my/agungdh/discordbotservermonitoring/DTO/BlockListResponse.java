@@ -20,5 +20,6 @@ public record BlockListResponse(
             int invalid_domains,
             int abp_entries,
             int status
-    ) {}
+    ) {
+    }
 }

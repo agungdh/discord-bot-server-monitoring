@@ -1,12 +1,12 @@
 package id.my.agungdh.discordbotservermonitoring.commands;
 
-import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.MetricsDTO;
-import id.my.agungdh.discordbotservermonitoring.service.MetricsService;
-import id.my.agungdh.discordbotservermonitoring.util.MessageUtils;
+import id.my.agungdh.discordbotservermonitoring.DTO.BlockListResponse;
 import id.my.agungdh.discordbotservermonitoring.DTO.SummaryResponse;
 import id.my.agungdh.discordbotservermonitoring.DTO.TopDomainsResponse;
-import id.my.agungdh.discordbotservermonitoring.DTO.BlockListResponse;
+import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.MetricsDTO;
+import id.my.agungdh.discordbotservermonitoring.service.MetricsService;
 import id.my.agungdh.discordbotservermonitoring.service.PiHoleClient;
+import id.my.agungdh.discordbotservermonitoring.util.MessageUtils;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import org.springframework.stereotype.Component;
@@ -45,19 +45,35 @@ public class HealthCommand implements SlashCommand {
                     .orTimeout(5, TimeUnit.MINUTES);
 
             CompletableFuture<SummaryResponse> piholeSummaryFut = CompletableFuture.supplyAsync(() -> {
-                try { return piHoleClient.getSummary(); } catch (Exception e) { return null; }
+                try {
+                    return piHoleClient.getSummary();
+                } catch (Exception e) {
+                    return null;
+                }
             }).orTimeout(30, TimeUnit.SECONDS);
 
             CompletableFuture<TopDomainsResponse> topDomainsFut = CompletableFuture.supplyAsync(() -> {
-                try { return piHoleClient.getTopDomains(10); } catch (Exception e) { return null; }
+                try {
+                    return piHoleClient.getTopDomains(10);
+                } catch (Exception e) {
+                    return null;
+                }
             }).orTimeout(30, TimeUnit.SECONDS);
 
             CompletableFuture<TopDomainsResponse> topBlockedFut = CompletableFuture.supplyAsync(() -> {
-                try { return piHoleClient.getTopBlockedDomains(10); } catch (Exception e) { return null; }
+                try {
+                    return piHoleClient.getTopBlockedDomains(10);
+                } catch (Exception e) {
+                    return null;
+                }
             }).orTimeout(30, TimeUnit.SECONDS);
 
             CompletableFuture<BlockListResponse> blockListsFut = CompletableFuture.supplyAsync(() -> {
-                try { return piHoleClient.getBlockLists(); } catch (Exception e) { return null; }
+                try {
+                    return piHoleClient.getBlockLists();
+                } catch (Exception e) {
+                    return null;
+                }
             }).orTimeout(30, TimeUnit.SECONDS);
 
             CompletableFuture.allOf(metricsFut, piholeSummaryFut, topDomainsFut, topBlockedFut, blockListsFut)

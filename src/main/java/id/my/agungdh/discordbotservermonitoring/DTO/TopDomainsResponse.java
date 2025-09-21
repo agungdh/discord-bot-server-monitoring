@@ -8,5 +8,6 @@ public record TopDomainsResponse(
         long blocked_queries,
         double took
 ) {
-    public record DomainCount(String domain, long count) {}
+    public record DomainCount(String domain, long count) {
+    }
 }

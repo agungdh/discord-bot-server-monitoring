@@ -42,10 +42,10 @@ public class ErrorsCommand implements SlashCommand {
             ZoneId zone = ZoneId.systemDefault();
             Instant now = Instant.now();
             Instant startToday = LocalDate.now(zone).atStartOfDay(zone).toInstant();
-            Instant startYday  = LocalDate.now(zone).minusDays(1).atStartOfDay(zone).toInstant();
-            Instant startD2    = LocalDate.now(zone).minusDays(2).atStartOfDay(zone).toInstant();
-            Instant startW1    = LocalDate.now(zone).minusDays(7).atStartOfDay(zone).toInstant();
-            Instant startW2    = LocalDate.now(zone).minusDays(14).atStartOfDay(zone).toInstant();
+            Instant startYday = LocalDate.now(zone).minusDays(1).atStartOfDay(zone).toInstant();
+            Instant startD2 = LocalDate.now(zone).minusDays(2).atStartOfDay(zone).toInstant();
+            Instant startW1 = LocalDate.now(zone).minusDays(7).atStartOfDay(zone).toInstant();
+            Instant startW2 = LocalDate.now(zone).minusDays(14).atStartOfDay(zone).toInstant();
 
             // ==== Jalankan SEMUA pemanggilan service secara paralel TANPA ubah service ====
             CompletableFuture<List<PrometheusClient.ResultPoint>> h1F = supplyAsync(() -> svc.errorMinutesLastHours(1));
@@ -54,21 +54,21 @@ public class ErrorsCommand implements SlashCommand {
             CompletableFuture<List<PrometheusClient.ResultPoint>> h6F = supplyAsync(() -> svc.errorMinutesLastHours(6));
 
             CompletableFuture<List<PrometheusClient.ResultPoint>> todayF = supplyAsync(svc::errorMinutesToday);
-            CompletableFuture<List<PrometheusClient.ResultPoint>> ydayF  = supplyAsync(svc::errorMinutesYesterday);
-            CompletableFuture<List<PrometheusClient.ResultPoint>> d2F    = supplyAsync(svc::errorMinutesTwoDaysAgo);
-            CompletableFuture<List<PrometheusClient.ResultPoint>> w1F    = supplyAsync(svc::errorMinutesLastWeekUntilNow);
-            CompletableFuture<List<PrometheusClient.ResultPoint>> w2F    = supplyAsync(svc::errorMinutesLast2WeeksUntilNow);
+            CompletableFuture<List<PrometheusClient.ResultPoint>> ydayF = supplyAsync(svc::errorMinutesYesterday);
+            CompletableFuture<List<PrometheusClient.ResultPoint>> d2F = supplyAsync(svc::errorMinutesTwoDaysAgo);
+            CompletableFuture<List<PrometheusClient.ResultPoint>> w1F = supplyAsync(svc::errorMinutesLastWeekUntilNow);
+            CompletableFuture<List<PrometheusClient.ResultPoint>> w2F = supplyAsync(svc::errorMinutesLast2WeeksUntilNow);
 
             // Total unik menit down per range — juga paralel (tetap panggil method sync di service)
-            CompletableFuture<Long> uH1    = supplyAsync(() -> svc.errorMinutesAnyDown(now.minus(Duration.ofHours(1)), now));
-            CompletableFuture<Long> uH2    = supplyAsync(() -> svc.errorMinutesAnyDown(now.minus(Duration.ofHours(2)), now));
-            CompletableFuture<Long> uH3    = supplyAsync(() -> svc.errorMinutesAnyDown(now.minus(Duration.ofHours(3)), now));
-            CompletableFuture<Long> uH6    = supplyAsync(() -> svc.errorMinutesAnyDown(now.minus(Duration.ofHours(6)), now));
+            CompletableFuture<Long> uH1 = supplyAsync(() -> svc.errorMinutesAnyDown(now.minus(Duration.ofHours(1)), now));
+            CompletableFuture<Long> uH2 = supplyAsync(() -> svc.errorMinutesAnyDown(now.minus(Duration.ofHours(2)), now));
+            CompletableFuture<Long> uH3 = supplyAsync(() -> svc.errorMinutesAnyDown(now.minus(Duration.ofHours(3)), now));
+            CompletableFuture<Long> uH6 = supplyAsync(() -> svc.errorMinutesAnyDown(now.minus(Duration.ofHours(6)), now));
             CompletableFuture<Long> uToday = supplyAsync(() -> svc.errorMinutesAnyDown(startToday, now));
-            CompletableFuture<Long> uYday  = supplyAsync(() -> svc.errorMinutesAnyDown(startYday, startToday));
-            CompletableFuture<Long> uD2    = supplyAsync(() -> svc.errorMinutesAnyDown(startD2, startYday));
-            CompletableFuture<Long> uW1    = supplyAsync(() -> svc.errorMinutesAnyDown(startW1, now));
-            CompletableFuture<Long> uW2    = supplyAsync(() -> svc.errorMinutesAnyDown(startW2, now));
+            CompletableFuture<Long> uYday = supplyAsync(() -> svc.errorMinutesAnyDown(startYday, startToday));
+            CompletableFuture<Long> uD2 = supplyAsync(() -> svc.errorMinutesAnyDown(startD2, startYday));
+            CompletableFuture<Long> uW1 = supplyAsync(() -> svc.errorMinutesAnyDown(startW1, now));
+            CompletableFuture<Long> uW2 = supplyAsync(() -> svc.errorMinutesAnyDown(startW2, now));
 
             CompletableFuture.allOf(
                             h1F, h2F, h3F, h6F, todayF, ydayF, d2F, w1F, w2F,
@@ -82,25 +82,25 @@ public class ErrorsCommand implements SlashCommand {
                         }
 
                         // Kumpulkan hasil (aman karena allOf sudah selesai)
-                        var h1    = h1F.join();
-                        var h2    = h2F.join();
-                        var h3    = h3F.join();
-                        var h6    = h6F.join();
+                        var h1 = h1F.join();
+                        var h2 = h2F.join();
+                        var h3 = h3F.join();
+                        var h6 = h6F.join();
                         var today = todayF.join();
-                        var yday  = ydayF.join();
-                        var d2    = d2F.join();
-                        var w1    = w1F.join();
-                        var w2    = w2F.join();
+                        var yday = ydayF.join();
+                        var d2 = d2F.join();
+                        var w1 = w1F.join();
+                        var w2 = w2F.join();
 
-                        long tuH1    = uH1.join();
-                        long tuH2    = uH2.join();
-                        long tuH3    = uH3.join();
-                        long tuH6    = uH6.join();
+                        long tuH1 = uH1.join();
+                        long tuH2 = uH2.join();
+                        long tuH3 = uH3.join();
+                        long tuH6 = uH6.join();
                         long tuToday = uToday.join();
-                        long tuYday  = uYday.join();
-                        long tuD2    = uD2.join();
-                        long tuW1    = uW1.join();
-                        long tuW2    = uW2.join();
+                        long tuYday = uYday.join();
+                        long tuD2 = uD2.join();
+                        long tuW1 = uW1.join();
+                        long tuW2 = uW2.join();
 
                         // Build embed
                         EmbedBuilder eb = new EmbedBuilder();
@@ -132,11 +132,16 @@ public class ErrorsCommand implements SlashCommand {
         });
     }
 
-    /** Helper untuk submit tugas sync ke executor tanpa ubah service. */
+    /**
+     * Helper untuk submit tugas sync ke executor tanpa ubah service.
+     */
     private <T> CompletableFuture<T> supplyAsync(Callable<T> task) {
         return CompletableFuture.supplyAsync(() -> {
-            try { return task.call(); }
-            catch (Exception e) { throw new CompletionException(e); }
+            try {
+                return task.call();
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
         }, executor);
     }
 

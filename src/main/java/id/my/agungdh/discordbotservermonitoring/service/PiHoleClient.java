@@ -1,10 +1,10 @@
 package id.my.agungdh.discordbotservermonitoring.service;
 
 import id.my.agungdh.discordbotservermonitoring.DTO.BlockListResponse;
-import id.my.agungdh.discordbotservermonitoring.DTO.SummaryResponse;
-import id.my.agungdh.discordbotservermonitoring.config.PiHoleProperties;
 import id.my.agungdh.discordbotservermonitoring.DTO.SessionWrapper;
+import id.my.agungdh.discordbotservermonitoring.DTO.SummaryResponse;
 import id.my.agungdh.discordbotservermonitoring.DTO.TopDomainsResponse;
+import id.my.agungdh.discordbotservermonitoring.config.PiHoleProperties;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -86,12 +86,6 @@ public class PiHoleClient {
         }
     }
 
-    public record SessionRecord(String sid, String csrf, Instant expiry) {
-        public boolean isExpired() {
-            return expiry.isBefore(Instant.now());
-        }
-    }
-
     public SummaryResponse getSummary() {
         ensureLoggedIn();
         String url = props.getBaseUrl() + "/api/stats/summary";
@@ -114,5 +108,11 @@ public class PiHoleClient {
 
         return restTemplate.exchange(url, HttpMethod.GET,
                 new HttpEntity<>(headers), BlockListResponse.class).getBody();
+    }
+
+    public record SessionRecord(String sid, String csrf, Instant expiry) {
+        public boolean isExpired() {
+            return expiry.isBefore(Instant.now());
+        }
     }
 }
