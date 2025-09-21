@@ -126,6 +126,15 @@ public class HealthCommand implements SlashCommand {
                                     "Total: `" + totalQ + "`\n" +
                                             "Blocked: `" + blockedQ + "` (" + MessageUtils.round2(pctBlocked) + "%)",
                                     true);
+
+                            // ===== Gravity info =====
+                            if (s.gravity() != null) {
+                                String lastUpd = java.time.Instant.ofEpochSecond(s.gravity().last_update()).toString();
+                                eb.addField("Gravity",
+                                        "Domains blocked: `" + s.gravity().domains_being_blocked() + "`\n" +
+                                                "Last update: `" + lastUpd + "`",
+                                        false);
+                            }
                         } else {
                             eb.addBlankField(false);
                             eb.addField("Pi-hole", "_unavailable_", false);
