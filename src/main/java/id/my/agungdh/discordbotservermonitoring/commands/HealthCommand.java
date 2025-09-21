@@ -127,12 +127,12 @@ public class HealthCommand implements SlashCommand {
                                             "Blocked: `" + blockedQ + "` (" + MessageUtils.round2(pctBlocked) + "%)",
                                     true);
 
-                            // ===== Gravity info =====
                             if (s.gravity() != null) {
-                                String lastUpd = java.time.Instant.ofEpochSecond(s.gravity().last_update()).toString();
+                                long epoch = s.gravity().last_update();
+                                String relative = "<t:" + epoch + ":R>";  // Discord render jadi "x minutes ago"
                                 eb.addField("Gravity",
                                         "Domains blocked: `" + s.gravity().domains_being_blocked() + "`\n" +
-                                                "Last update: `" + lastUpd + "`",
+                                                "Last update: " + relative,
                                         false);
                             }
                         } else {
