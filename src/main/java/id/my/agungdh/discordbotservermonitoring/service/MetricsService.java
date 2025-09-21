@@ -1,6 +1,7 @@
 package id.my.agungdh.discordbotservermonitoring.service;
 
 import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.*;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
@@ -17,6 +18,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class MetricsService {
@@ -24,35 +26,33 @@ public class MetricsService {
     private final CentralProcessor cpu = si.getHardware().getProcessor();
     private long[] prevCpuTicks = cpu.getSystemCpuLoadTicks();
     private long[][] prevProcTicks = cpu.getProcessorCpuLoadTicks();
+    private final Object cpuTickLock = new Object(); // <— kunci ringkas untuk update ticks
+
     private final GlobalMemory mem = si.getHardware().getMemory();
     private final OperatingSystem os = si.getOperatingSystem();
     private final Sensors sensors = si.getHardware().getSensors();
 
     // util aman untuk panggil getter NIO yang kadang lempar UnsupportedOperationException di native
     private static long safeLong(LongSupplierThrows action) {
-        try {
-            return action.getAsLong();
-        } catch (Throwable t) {
-            return 0L;
-        }
+        try { return action.getAsLong(); } catch (Throwable t) { return 0L; }
     }
 
-    private static double round2(double v) {
-        return Math.round(v * 100.0) / 100.0;
-    }
+    private static double round2(double v) { return Math.round(v * 100.0) / 100.0; }
+    private static String safe(String s) { return s == null ? "" : s; }
 
-    private static String safe(String s) {
-        return s == null ? "" : s;
-    }
-
+    /** Panggilan synchronous (dipakai internal oleh async). */
     public MetricsDTO snapshot(boolean includeNetwork) {
-        // CPU %
-        double cpuUsage = cpu.getSystemCpuLoadBetweenTicks(prevCpuTicks) * 100.0;
-        prevCpuTicks = cpu.getSystemCpuLoadTicks();
+        // ===== CPU % (lindungi update ticks biar tidak balapan antar request) =====
+        double cpuUsage;
+        double[] perCore;
+        synchronized (cpuTickLock) {
+            cpuUsage = cpu.getSystemCpuLoadBetweenTicks(prevCpuTicks) * 100.0;
+            prevCpuTicks = cpu.getSystemCpuLoadTicks();
 
-        // per-core %
-        double[] perCore = cpu.getProcessorCpuLoadBetweenTicks(prevProcTicks);
-        prevProcTicks = cpu.getProcessorCpuLoadTicks();
+            perCore = cpu.getProcessorCpuLoadBetweenTicks(prevProcTicks);
+            prevProcTicks = cpu.getProcessorCpuLoadTicks();
+        }
+
         List<Double> perCorePct = new ArrayList<>(perCore.length);
         for (double v : perCore) perCorePct.add(round2(v * 100.0));
 
@@ -68,7 +68,7 @@ public class MetricsService {
                 temp
         );
 
-        // Memory
+        // ===== Memory =====
         long total = mem.getTotal();
         long available = mem.getAvailable();
         long used = total - available;
@@ -76,7 +76,7 @@ public class MetricsService {
                 total, used, available, round2(used * 100.0 / Math.max(1, total))
         );
 
-        // Swap
+        // ===== Swap =====
         var vm = mem.getVirtualMemory();
         long swapTotal = vm.getSwapTotal();
         long swapUsed = vm.getSwapUsed();
@@ -85,33 +85,26 @@ public class MetricsService {
                 round2(swapTotal == 0 ? 0.0 : (swapUsed * 100.0 / swapTotal))
         );
 
-        // Storage — pake Java NIO (hindari JNA statvfs biang error)
+        // ===== Storage (NIO) =====
         List<StorageDTO> disks = new ArrayList<>();
         try {
             FileSystem fsys = FileSystems.getDefault();
             for (FileStore fs : fsys.getFileStores()) {
-                long tot = safeLong(() -> fs.getTotalSpace());
-                long usable = safeLong(() -> fs.getUsableSpace());
+                long tot = safeLong(fs::getTotalSpace);
+                long usable = safeLong(fs::getUsableSpace);
                 double usedPct = tot == 0 ? 0.0 : (100.0 * (tot - usable) / tot);
 
                 String name = safe(fs.name());
-                // beberapa FS bisa kasih nama kosong; fallback ke toString()
                 if (name.isBlank()) name = safe(fs.toString());
                 String type = safe(fs.type());
 
                 disks.add(new StorageDTO(
-                        name,
-                        type,
-                        tot,
-                        usable,
-                        round2(usedPct)
+                        name, type, tot, usable, round2(usedPct)
                 ));
             }
-        } catch (Exception ignore) {
-            // kalau NIO gagal, biarin kosong (lebih baik kosong daripada crash)
-        }
+        } catch (Exception ignore) {}
 
-        // Network (selalu include? tergantung pemanggil, controller kamu pakai true)
+        // ===== Network (opsional) =====
         List<NetworkDTO> nets = List.of();
         if (includeNetwork) {
             List<NetworkDTO> tmp = new ArrayList<>();
@@ -152,8 +145,16 @@ public class MetricsService {
         );
     }
 
-    @FunctionalInterface
-    private interface LongSupplierThrows {
-        long getAsLong() throws Exception;
+    /** Versi async untuk dipakai handler Discord. */
+    @Async("commandExecutor")
+    public CompletableFuture<MetricsDTO> snapshotAsync(boolean includeNetwork) {
+        try {
+            return CompletableFuture.completedFuture(snapshot(includeNetwork));
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
+
+    @FunctionalInterface
+    private interface LongSupplierThrows { long getAsLong() throws Exception; }
 }
