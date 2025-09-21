@@ -4,6 +4,7 @@ import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.MetricsDTO;
 import id.my.agungdh.discordbotservermonitoring.service.MetricsService;
 import id.my.agungdh.discordbotservermonitoring.util.MessageUtils;
 import id.my.agungdh.discordbotservermonitoring.DTO.SummaryResponse;
+import id.my.agungdh.discordbotservermonitoring.DTO.TopDomainsResponse;
 import id.my.agungdh.discordbotservermonitoring.service.PiHoleClient;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -35,22 +36,26 @@ public class HealthCommand implements SlashCommand {
 
     @Override
     public void handle(SlashCommandInteractionEvent event) {
-        // Beri tahu Discord kita butuh waktu, agar tidak timeout 3 detik
+        // Agar tidak timeout 3 detik
         event.deferReply()/* .setEphemeral(true) */.queue(hook -> {
 
-            // Jalan paralel: metrics server & summary Pi-hole
+            // Jalan paralel: metrics server & Pi-hole data
             CompletableFuture<MetricsDTO> metricsFut = metricsService.snapshotAsync(true)
                     .orTimeout(10, TimeUnit.SECONDS);
 
-            CompletableFuture<SummaryResponse> piholeFut = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return piHoleClient.getSummary();
-                } catch (Exception e) {
-                    return null; // biar command tetap jalan walau Pi-hole down
-                }
+            CompletableFuture<SummaryResponse> piholeSummaryFut = CompletableFuture.supplyAsync(() -> {
+                try { return piHoleClient.getSummary(); } catch (Exception e) { return null; }
             }).orTimeout(5, TimeUnit.SECONDS);
 
-            CompletableFuture.allOf(metricsFut, piholeFut)
+            CompletableFuture<TopDomainsResponse> topDomainsFut = CompletableFuture.supplyAsync(() -> {
+                try { return piHoleClient.getTopDomains(10); } catch (Exception e) { return null; }
+            }).orTimeout(5, TimeUnit.SECONDS);
+
+            CompletableFuture<TopDomainsResponse> topBlockedFut = CompletableFuture.supplyAsync(() -> {
+                try { return piHoleClient.getTopBlockedDomains(10); } catch (Exception e) { return null; }
+            }).orTimeout(5, TimeUnit.SECONDS);
+
+            CompletableFuture.allOf(metricsFut, piholeSummaryFut, topDomainsFut, topBlockedFut)
                     .whenComplete((ignored, err) -> {
                         if (err != null) {
                             hook.editOriginal("⚠️ Gagal ambil data: " + err.getMessage()).queue();
@@ -58,7 +63,9 @@ public class HealthCommand implements SlashCommand {
                         }
 
                         MetricsDTO m = metricsFut.getNow(null);
-                        SummaryResponse s = piholeFut.getNow(null);
+                        SummaryResponse s = piholeSummaryFut.getNow(null);
+                        TopDomainsResponse td = topDomainsFut.getNow(null);
+                        TopDomainsResponse tb = topBlockedFut.getNow(null);
 
                         if (m == null) {
                             hook.editOriginal("⚠️ Gagal ambil metrik server.").queue();
@@ -101,11 +108,10 @@ public class HealthCommand implements SlashCommand {
                             eb.addField("Swap", swapBar, false);
                         }
 
-                        // ===== Pi-hole summary (clients + queries) =====
+                        // ===== 2) Pi-hole summary =====
                         if (s != null && s.clients() != null && s.queries() != null) {
                             int active = s.clients().active();
                             int totalClients = s.clients().total();
-
                             long totalQ = s.queries().total();
                             long blockedQ = s.queries().blocked();
                             double pctBlocked = s.queries().percent_blocked();
@@ -120,14 +126,45 @@ public class HealthCommand implements SlashCommand {
                                     "Total: `" + totalQ + "`\n" +
                                             "Blocked: `" + blockedQ + "` (" + MessageUtils.round2(pctBlocked) + "%)",
                                     true);
-
-                            eb.addBlankField(true);
                         } else {
                             eb.addBlankField(false);
                             eb.addField("Pi-hole", "_unavailable_", false);
                         }
 
-                        // ===== 2) Siapkan halaman disk & network (dipotong 1800 char) =====
+                        // ===== 3) Top 10 Domains & Top 10 Blocked =====
+                        if ((td != null && td.domains() != null && !td.domains().isEmpty())
+                                || (tb != null && tb.domains() != null && !tb.domains().isEmpty())) {
+
+                            StringBuilder topNormal = new StringBuilder();
+                            if (td != null && td.domains() != null) {
+                                int i = 1;
+                                for (var d : td.domains()) {
+                                    topNormal.append(i++)
+                                            .append(". `").append(MessageUtils.safe(d.domain())).append("` ")
+                                            .append("(").append(d.count()).append(")\n");
+                                }
+                            }
+
+                            StringBuilder topBlocked = new StringBuilder();
+                            if (tb != null && tb.domains() != null) {
+                                int i = 1;
+                                for (var d : tb.domains()) {
+                                    topBlocked.append(i++)
+                                            .append(". `").append(MessageUtils.safe(d.domain())).append("` ")
+                                            .append("(").append(d.count()).append(")\n");
+                                }
+                            }
+
+                            eb.addBlankField(false);
+                            if (topNormal.length() > 0) {
+                                eb.addField("🌐 Top Domains", topNormal.toString(), true);
+                            }
+                            if (topBlocked.length() > 0) {
+                                eb.addField("🚫 Top Blocked", topBlocked.toString(), true);
+                            }
+                        }
+
+                        // ===== 4) Storage & Network pagination (dipotong 1800 char) =====
                         List<String> diskParts = new ArrayList<>();
                         if (m.storage() != null && !m.storage().isEmpty()) {
                             StringBuilder all = new StringBuilder(4096);

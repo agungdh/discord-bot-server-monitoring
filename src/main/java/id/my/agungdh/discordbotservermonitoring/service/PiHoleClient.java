@@ -69,7 +69,7 @@ public class PiHoleClient {
 
     public TopDomainsResponse getTopBlockedDomains(int count) {
         ensureLoggedIn();
-        String url = props.getBaseUrl() + "/api/stats/top_domains?count=" + count + "&onlyBlocked=1";
+        String url = props.getBaseUrl() + "/api/stats/top_domains?count=" + count + "&blocked=true";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
