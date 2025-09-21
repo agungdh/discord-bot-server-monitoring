@@ -74,7 +74,7 @@ public class ErrorsCommand implements SlashCommand {
                             h1F, h2F, h3F, h6F, todayF, ydayF, d2F, w1F, w2F,
                             uH1, uH2, uH3, uH6, uToday, uYday, uD2, uW1, uW2
                     )
-                    .orTimeout(12, TimeUnit.SECONDS) // timeout global opsional
+                    .orTimeout(13, TimeUnit.MINUTES) // timeout global opsional
                     .whenComplete((ignored, err) -> {
                         if (err != null) {
                             hook.editOriginal("⚠️ Gagal ambil data error minutes: " + err.getMessage()).queue();

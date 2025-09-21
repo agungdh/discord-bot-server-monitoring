@@ -42,25 +42,26 @@ public class HealthCommand implements SlashCommand {
 
             // Jalan paralel: metrics + semua data Pi-hole
             CompletableFuture<MetricsDTO> metricsFut = metricsService.snapshotAsync(true)
-                    .orTimeout(10, TimeUnit.SECONDS);
+                    .orTimeout(5, TimeUnit.MINUTES);
 
             CompletableFuture<SummaryResponse> piholeSummaryFut = CompletableFuture.supplyAsync(() -> {
                 try { return piHoleClient.getSummary(); } catch (Exception e) { return null; }
-            }).orTimeout(5, TimeUnit.SECONDS);
+            }).orTimeout(30, TimeUnit.SECONDS);
 
             CompletableFuture<TopDomainsResponse> topDomainsFut = CompletableFuture.supplyAsync(() -> {
                 try { return piHoleClient.getTopDomains(10); } catch (Exception e) { return null; }
-            }).orTimeout(5, TimeUnit.SECONDS);
+            }).orTimeout(30, TimeUnit.SECONDS);
 
             CompletableFuture<TopDomainsResponse> topBlockedFut = CompletableFuture.supplyAsync(() -> {
                 try { return piHoleClient.getTopBlockedDomains(10); } catch (Exception e) { return null; }
-            }).orTimeout(5, TimeUnit.SECONDS);
+            }).orTimeout(30, TimeUnit.SECONDS);
 
             CompletableFuture<BlockListResponse> blockListsFut = CompletableFuture.supplyAsync(() -> {
                 try { return piHoleClient.getBlockLists(); } catch (Exception e) { return null; }
-            }).orTimeout(5, TimeUnit.SECONDS);
+            }).orTimeout(30, TimeUnit.SECONDS);
 
             CompletableFuture.allOf(metricsFut, piholeSummaryFut, topDomainsFut, topBlockedFut, blockListsFut)
+                    .orTimeout(7, TimeUnit.MINUTES)
                     .whenComplete((ignored, err) -> {
                         if (err != null) {
                             hook.editOriginal("⚠️ Gagal ambil data: " + err.getMessage()).queue();
