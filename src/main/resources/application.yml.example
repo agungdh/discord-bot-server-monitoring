@@ -7,3 +7,7 @@ discord:
   rto-alert-channel-id:
 prometheus:
   baseUrl: http://127.0.0.1:9090
+pihole:
+  base-url: http://pi.hole:80
+  password:
+  relogin-interval-ms: 1500000
