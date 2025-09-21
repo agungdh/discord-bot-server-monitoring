@@ -3,6 +3,8 @@ package id.my.agungdh.discordbotservermonitoring.commands;
 import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.MetricsDTO;
 import id.my.agungdh.discordbotservermonitoring.service.MetricsService;
 import id.my.agungdh.discordbotservermonitoring.util.MessageUtils;
+import id.my.agungdh.discordbotservermonitoring.DTO.SummaryResponse;
+import id.my.agungdh.discordbotservermonitoring.service.PiHoleClient;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import org.springframework.stereotype.Component;
@@ -19,9 +21,11 @@ import java.util.concurrent.TimeUnit;
 public class HealthCommand implements SlashCommand {
 
     private final MetricsService metricsService;
+    private final PiHoleClient piHoleClient;
 
-    public HealthCommand(MetricsService metricsService) {
+    public HealthCommand(MetricsService metricsService, PiHoleClient piHoleClient) {
         this.metricsService = metricsService;
+        this.piHoleClient = piHoleClient;
     }
 
     @Override
@@ -34,12 +38,30 @@ public class HealthCommand implements SlashCommand {
         // Beri tahu Discord kita butuh waktu, agar tidak timeout 3 detik
         event.deferReply()/* .setEphemeral(true) */.queue(hook -> {
 
-            // Panggil service secara async (tidak memblokir thread event JDA)
-            metricsService.snapshotAsync(true)
-                    .orTimeout(10, TimeUnit.SECONDS) // opsional: timeout 10s
-                    .whenComplete((m, err) -> {
+            // Jalan paralel: metrics server & summary Pi-hole
+            CompletableFuture<MetricsDTO> metricsFut = metricsService.snapshotAsync(true)
+                    .orTimeout(10, TimeUnit.SECONDS);
+
+            CompletableFuture<SummaryResponse> piholeFut = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return piHoleClient.getSummary();
+                } catch (Exception e) {
+                    return null; // biar command tetap jalan walau Pi-hole down
+                }
+            }).orTimeout(5, TimeUnit.SECONDS);
+
+            CompletableFuture.allOf(metricsFut, piholeFut)
+                    .whenComplete((ignored, err) -> {
                         if (err != null) {
-                            hook.editOriginal("⚠️ Gagal ambil metrik: " + err.getMessage()).queue();
+                            hook.editOriginal("⚠️ Gagal ambil data: " + err.getMessage()).queue();
+                            return;
+                        }
+
+                        MetricsDTO m = metricsFut.getNow(null);
+                        SummaryResponse s = piholeFut.getNow(null);
+
+                        if (m == null) {
+                            hook.editOriginal("⚠️ Gagal ambil metrik server.").queue();
                             return;
                         }
 
@@ -53,6 +75,7 @@ public class HealthCommand implements SlashCommand {
                         eb.addField("Time", m.timestamp().toString(), true);
                         eb.addBlankField(true);
 
+                        // CPU
                         String cpuBar = MessageUtils.codeBlock(
                                 MessageUtils.progressBar(m.cpu().cpuUsage()) + " " + MessageUtils.round2(m.cpu().cpuUsage()) + "%"
                         );
@@ -62,18 +85,46 @@ public class HealthCommand implements SlashCommand {
                                 "**Temp:** " + (m.cpu().temperatureC() == null ? "N/A" : (m.cpu().temperatureC() + "°C"));
                         eb.addField("CPU " + MessageUtils.gaugeEmoji(m.cpu().cpuUsage()), cpuBar + "\n" + cpuInfo, false);
 
+                        // Memory
                         String memBar = MessageUtils.codeBlock(
                                 MessageUtils.progressBar(m.memory().usedPercent()) + " " + MessageUtils.round2(m.memory().usedPercent()) + "% (" +
                                         MessageUtils.humanBytes(m.memory().usedBytes()) + " / " + MessageUtils.humanBytes(m.memory().totalBytes()) + ")"
                         );
                         eb.addField("Memory", memBar, false);
 
+                        // Swap (jika ada)
                         if (m.swap().totalBytes() > 0) {
                             String swapBar = MessageUtils.codeBlock(
                                     MessageUtils.progressBar(m.swap().usedPercent()) + " " + MessageUtils.round2(m.swap().usedPercent()) + "% (" +
                                             MessageUtils.humanBytes(m.swap().usedBytes()) + " / " + MessageUtils.humanBytes(m.swap().totalBytes()) + ")"
                             );
                             eb.addField("Swap", swapBar, false);
+                        }
+
+                        // ===== Pi-hole summary (clients + queries) =====
+                        if (s != null && s.clients() != null && s.queries() != null) {
+                            int active = s.clients().active();
+                            int totalClients = s.clients().total();
+
+                            long totalQ = s.queries().total();
+                            long blockedQ = s.queries().blocked();
+                            double pctBlocked = s.queries().percent_blocked();
+
+                            eb.addBlankField(false);
+                            eb.addField("Pi-hole Clients",
+                                    "Active: `" + active + "`\n" +
+                                            "Total: `" + totalClients + "`",
+                                    true);
+
+                            eb.addField("DNS Queries",
+                                    "Total: `" + totalQ + "`\n" +
+                                            "Blocked: `" + blockedQ + "` (" + MessageUtils.round2(pctBlocked) + "%)",
+                                    true);
+
+                            eb.addBlankField(true);
+                        } else {
+                            eb.addBlankField(false);
+                            eb.addField("Pi-hole", "_unavailable_", false);
                         }
 
                         // ===== 2) Siapkan halaman disk & network (dipotong 1800 char) =====
@@ -125,13 +176,13 @@ public class HealthCommand implements SlashCommand {
                             CompletableFuture<Void> flow = CompletableFuture.completedFuture(null);
 
                             if (!finalDiskParts.isEmpty()) {
-                                flow = flow.thenCompose(ignored -> MessageUtils.sendSequentially(hook, finalDiskParts));
+                                flow = flow.thenCompose(ignored2 -> MessageUtils.sendSequentially(hook, finalDiskParts));
                             } else {
-                                flow = flow.thenCompose(ignored -> MessageUtils.toCF(hook.sendMessage("_No storage info_"))
+                                flow = flow.thenCompose(ignored2 -> MessageUtils.toCF(hook.sendMessage("_No storage info_"))
                                         .thenApply(x -> null));
                             }
 
-                            flow.thenCompose(ignored -> {
+                            flow.thenCompose(ignored2 -> {
                                         if (!finalNetParts.isEmpty()) {
                                             return MessageUtils.sendSequentially(hook, finalNetParts);
                                         } else {
@@ -144,8 +195,7 @@ public class HealthCommand implements SlashCommand {
                                         return null;
                                     });
                         });
-
-                    }); // end whenComplete
-        }); // end deferReply queue
+                    });
+        });
     }
 }
