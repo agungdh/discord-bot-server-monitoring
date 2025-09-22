@@ -1,3 +1,4 @@
+// file: id/my/agungdh/discordbotservermonitoring/bootstrap/PiHoleAutoLogin.java
 package id.my.agungdh.discordbotservermonitoring.bootstrap;
 
 import id.my.agungdh.discordbotservermonitoring.config.PiHoleProperties;
@@ -16,6 +17,9 @@ public class PiHoleAutoLogin {
     private final PiHoleClient client;
     private final PiHoleProperties props;
 
+    // relogin kalau sisa masa berlaku <= 60 detik
+    private static final long REL_LOGIN_THRESHOLD_SEC = 60;
+
     public PiHoleAutoLogin(PiHoleClient client, PiHoleProperties props) {
         this.client = client;
         this.props = props;
@@ -27,18 +31,36 @@ public class PiHoleAutoLogin {
             client.login(props.getPassword());
             var sess = client.currentSession();
             if (sess != null) {
-                log.info("Pi-hole login OK. Expiry: {}", sess.expiry());
+                log.info("Pi-hole login OK. Expiry: {} (remaining ~{}s)", sess.expiry(), sess.secondsRemaining());
+            } else {
+                log.warn("Pi-hole login: session null");
             }
         } catch (Exception e) {
             log.error("Pi-hole auto-login gagal: {}", e.getMessage());
         }
     }
 
-    @Scheduled(fixedDelayString = "${pihole.relogin-interval-ms:1500000}")
+    @Scheduled(fixedDelayString = "${pihole.relogin-interval-ms:1200000}") // 20 menit default (lebih aman)
     public void keepAlive() {
-        if (!client.isLoggedIn()) {
-            log.info("Session expired. Re-login...");
-            client.login(props.getPassword());
+        try {
+            var sess = client.currentSession();
+            if (sess == null || sess.isExpired() || sess.isExpiringSoon(REL_LOGIN_THRESHOLD_SEC)) {
+                long rem = (sess == null ? -1 : sess.secondsRemaining());
+                log.info("Session {} (remaining {}s). Re-login...",
+                        (sess == null ? "null" : (sess.isExpired() ? "expired" : "expiring soon")), rem);
+
+                client.login(props.getPassword());
+
+                var newSess = client.currentSession();
+                if (newSess != null) {
+                    log.info("Re-login OK. Expiry: {} (remaining ~{}s)", newSess.expiry(), newSess.secondsRemaining());
+                } else {
+                    log.warn("Re-login done, tapi session null.");
+                }
+            }
+        } catch (Exception e) {
+            // jangan biarkan exception mematikan scheduler
+            log.warn("Re-login Pi-hole gagal: {}", e.getMessage());
         }
     }
 }
