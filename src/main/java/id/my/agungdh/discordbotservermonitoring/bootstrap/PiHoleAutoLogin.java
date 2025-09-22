@@ -10,6 +10,11 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+
 @Component
 public class PiHoleAutoLogin {
     private static final Logger log = LoggerFactory.getLogger(PiHoleAutoLogin.class);
@@ -19,6 +24,11 @@ public class PiHoleAutoLogin {
 
     // relogin kalau sisa masa berlaku <= 60 detik
     private static final long REL_LOGIN_THRESHOLD_SEC = 60;
+
+    // === gunakan timezone default Spring (sudah di-set saat startup) ===
+    private static final ZoneId ZONE = ZoneId.systemDefault();
+    private static final DateTimeFormatter TS_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z (O)"); // contoh: 2025-09-22 11:03:06 WIB (+07:00)
 
     public PiHoleAutoLogin(PiHoleClient client, PiHoleProperties props) {
         this.client = client;
@@ -31,7 +41,8 @@ public class PiHoleAutoLogin {
             client.login(props.getPassword());
             var sess = client.currentSession();
             if (sess != null) {
-                log.info("Pi-hole login OK. Expiry: {} (remaining ~{}s)", sess.expiry(), sess.secondsRemaining());
+                log.info("Pi-hole login OK. Expiry: {} (remaining ~{}s)",
+                        fmt(sess.expiry()), sess.secondsRemaining());
             } else {
                 log.warn("Pi-hole login: session null");
             }
@@ -42,27 +53,36 @@ public class PiHoleAutoLogin {
 
     @Scheduled(
             fixedDelayString = "${pihole.relogin-interval-ms:1200000}", // 20 menit
-            initialDelayString = "${pihole.relogin-initial-delay-ms:60000}" // TUNDA 60s setelah start
+            initialDelayString = "${pihole.relogin-initial-delay-ms:60000}" // Tunda 60s setelah start
     )
     public void keepAlive() {
         try {
             var sess = client.currentSession();
             if (sess == null || sess.isExpired() || sess.isExpiringSoon(REL_LOGIN_THRESHOLD_SEC)) {
                 long rem = (sess == null ? -1 : sess.secondsRemaining());
-                log.info("Session {} (remaining {}s). Re-login...",
-                        (sess == null ? "null" : (sess.isExpired() ? "expired" : "expiring soon")), rem);
+                String state = (sess == null ? "null" : (sess.isExpired() ? "expired" : "expiring soon"));
+                String expStr = (sess == null ? "-" : fmt(sess.expiry()));
+                log.info("Session {} (expiry {}, remaining {}s). Re-login...", state, expStr, rem);
 
                 client.login(props.getPassword());
 
                 var newSess = client.currentSession();
                 if (newSess != null) {
-                    log.info("Re-login OK. Expiry: {} (remaining ~{}s)", newSess.expiry(), newSess.secondsRemaining());
+                    log.info("Re-login OK. Expiry: {} (remaining ~{}s)",
+                            fmt(newSess.expiry()), newSess.secondsRemaining());
                 } else {
                     log.warn("Re-login done, tapi session null.");
                 }
             }
         } catch (Exception e) {
+            // jangan biarkan exception mematikan scheduler
             log.warn("Re-login Pi-hole gagal: {}", e.getMessage());
         }
+    }
+
+    /** Format Instant → string lokal sesuai timezone Spring (systemDefault). */
+    private static String fmt(Instant instantUtc) {
+        ZonedDateTime zdt = instantUtc.atZone(ZONE);
+        return TS_FMT.format(zdt);
     }
 }
