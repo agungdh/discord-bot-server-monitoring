@@ -40,7 +40,10 @@ public class PiHoleAutoLogin {
         }
     }
 
-    @Scheduled(fixedDelayString = "${pihole.relogin-interval-ms:1200000}") // 20 menit default (lebih aman)
+    @Scheduled(
+            fixedDelayString = "${pihole.relogin-interval-ms:1200000}", // 20 menit
+            initialDelayString = "${pihole.relogin-initial-delay-ms:60000}" // TUNDA 60s setelah start
+    )
     public void keepAlive() {
         try {
             var sess = client.currentSession();
@@ -59,7 +62,6 @@ public class PiHoleAutoLogin {
                 }
             }
         } catch (Exception e) {
-            // jangan biarkan exception mematikan scheduler
             log.warn("Re-login Pi-hole gagal: {}", e.getMessage());
         }
     }
