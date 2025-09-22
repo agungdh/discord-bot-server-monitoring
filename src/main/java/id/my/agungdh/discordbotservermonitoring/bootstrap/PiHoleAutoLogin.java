@@ -1,4 +1,3 @@
-// file: id/my/agungdh/discordbotservermonitoring/bootstrap/PiHoleAutoLogin.java
 package id.my.agungdh.discordbotservermonitoring.bootstrap;
 
 import id.my.agungdh.discordbotservermonitoring.config.PiHoleProperties;
@@ -7,13 +6,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ScheduledFuture;
 
 @Component
 public class PiHoleAutoLogin {
@@ -21,18 +22,21 @@ public class PiHoleAutoLogin {
 
     private final PiHoleClient client;
     private final PiHoleProperties props;
+    private final TaskScheduler scheduler;
 
-    // relogin kalau sisa masa berlaku <= 60 detik
-    private static final long REL_LOGIN_THRESHOLD_SEC = 60;
+    // relogin H-5 menit (ubah sesuka hati)
+    private static final long REL_LOGIN_THRESHOLD_SEC = 300;
 
-    // === gunakan timezone default Spring (sudah di-set saat startup) ===
+    private volatile ScheduledFuture<?> nextRefreshTask;
+
     private static final ZoneId ZONE = ZoneId.systemDefault();
     private static final DateTimeFormatter TS_FMT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z (O)"); // contoh: 2025-09-22 11:03:06 WIB (+07:00)
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z (O)");
 
-    public PiHoleAutoLogin(PiHoleClient client, PiHoleProperties props) {
+    public PiHoleAutoLogin(PiHoleClient client, PiHoleProperties props, TaskScheduler scheduler) {
         this.client = client;
         this.props = props;
+        this.scheduler = scheduler;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -43,46 +47,74 @@ public class PiHoleAutoLogin {
             if (sess != null) {
                 log.info("Pi-hole login OK. Expiry: {} (remaining ~{}s)",
                         fmt(sess.expiry()), sess.secondsRemaining());
+                scheduleNextRefresh();
             } else {
                 log.warn("Pi-hole login: session null");
             }
         } catch (Exception e) {
             log.error("Pi-hole auto-login gagal: {}", e.getMessage());
+            // fallback: coba lagi 1 menit kemudian
+            scheduleRetry(Duration.ofMinutes(1));
         }
     }
 
-    @Scheduled(
-            fixedDelayString = "${pihole.relogin-interval-ms:1200000}", // 20 menit
-            initialDelayString = "${pihole.relogin-initial-delay-ms:60000}" // Tunda 60s setelah start
-    )
-    public void keepAlive() {
+    private void scheduleNextRefresh() {
+        var sess = client.currentSession();
+        if (sess == null) return;
+
+        Instant when = sess.expiry().minusSeconds(REL_LOGIN_THRESHOLD_SEC);
+        Instant now = Instant.now();
+
+        if (when.isBefore(now)) {
+            // kalau udah mepet/terlewat, relogin segera
+            log.info("Expiry-{}s sudah terlewat, relogin segera.", REL_LOGIN_THRESHOLD_SEC);
+            doReloginAndReschedule();
+            return;
+        }
+
+        // cancel jadwal lama (kalau ada)
+        var old = nextRefreshTask;
+        if (old != null) old.cancel(false);
+
+        long secs = Duration.between(now, when).getSeconds();
+        log.info("Menjadwalkan relogin pada {} ({}s dari sekarang).", fmt(when), secs);
+
+        nextRefreshTask = scheduler.schedule(this::doReloginAndReschedule, when);
+    }
+
+    private void doReloginAndReschedule() {
         try {
-            var sess = client.currentSession();
-            if (sess == null || sess.isExpired() || sess.isExpiringSoon(REL_LOGIN_THRESHOLD_SEC)) {
-                long rem = (sess == null ? -1 : sess.secondsRemaining());
-                String state = (sess == null ? "null" : (sess.isExpired() ? "expired" : "expiring soon"));
-                String expStr = (sess == null ? "-" : fmt(sess.expiry()));
-                log.info("Session {} (expiry {}, remaining {}s). Re-login...", state, expStr, rem);
+            var before = client.currentSession();
+            String beforeStr = (before == null ? "-" : fmt(before.expiry()));
+            log.info("Relogin trigger (current expiry: {}).", beforeStr);
 
-                client.login(props.getPassword());
+            client.login(props.getPassword());
 
-                var newSess = client.currentSession();
-                if (newSess != null) {
-                    log.info("Re-login OK. Expiry: {} (remaining ~{}s)",
-                            fmt(newSess.expiry()), newSess.secondsRemaining());
-                } else {
-                    log.warn("Re-login done, tapi session null.");
-                }
+            var newSess = client.currentSession();
+            if (newSess != null) {
+                log.info("Re-login OK. Expiry: {} (remaining ~{}s)",
+                        fmt(newSess.expiry()), newSess.secondsRemaining());
+                scheduleNextRefresh();
+            } else {
+                log.warn("Re-login done, tapi session null. Coba lagi 1 menit.");
+                scheduleRetry(Duration.ofMinutes(1));
             }
         } catch (Exception e) {
-            // jangan biarkan exception mematikan scheduler
-            log.warn("Re-login Pi-hole gagal: {}", e.getMessage());
+            log.warn("Relogin gagal: {}. Coba lagi 1 menit.", e.getMessage());
+            scheduleRetry(Duration.ofMinutes(1));
         }
     }
 
-    /** Format Instant → string lokal sesuai timezone Spring (systemDefault). */
+    private void scheduleRetry(Duration delay) {
+        var old = nextRefreshTask;
+        if (old != null) old.cancel(false);
+
+        Instant when = Instant.now().plus(delay);
+        log.info("Menjadwalkan retry relogin pada {} (+{}s).", fmt(when), delay.getSeconds());
+        nextRefreshTask = scheduler.schedule(this::doReloginAndReschedule, when);
+    }
+
     private static String fmt(Instant instantUtc) {
-        ZonedDateTime zdt = instantUtc.atZone(ZONE);
-        return TS_FMT.format(zdt);
+        return TS_FMT.format(instantUtc.atZone(ZONE));
     }
 }

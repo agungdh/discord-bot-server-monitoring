@@ -2,6 +2,8 @@ package id.my.agungdh.discordbotservermonitoring.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Configuration
 @ConfigurationProperties(prefix = "pihole")
@@ -32,5 +34,14 @@ public class PiHoleProperties {
 
     public void setReloginIntervalMs(long reloginIntervalMs) {
         this.reloginIntervalMs = reloginIntervalMs;
+    }
+
+    @Bean
+    public ThreadPoolTaskScheduler taskScheduler() {
+        var ts = new ThreadPoolTaskScheduler();
+        ts.setPoolSize(2);
+        ts.setThreadNamePrefix("pihole-sched-");
+        ts.initialize();
+        return ts;
     }
 }
