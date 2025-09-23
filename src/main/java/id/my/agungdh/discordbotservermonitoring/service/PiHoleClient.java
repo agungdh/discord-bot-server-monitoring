@@ -111,10 +111,14 @@ public class PiHoleClient {
     }
 
     public record SessionRecord(String sid, String csrf, Instant expiry) {
-        public boolean isExpired() { return expiry.isBefore(Instant.now()); }
+        public boolean isExpired() {
+            return expiry.isBefore(Instant.now());
+        }
+
         public long secondsRemaining() {
             return Math.max(0, expiry.getEpochSecond() - Instant.now().getEpochSecond());
         }
+
         public boolean isExpiringSoon(long thresholdSeconds) {
             return secondsRemaining() <= thresholdSeconds;
         }
