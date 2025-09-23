@@ -2,9 +2,9 @@ package id.my.agungdh.discordbotservermonitoring.config;
 
 import jakarta.annotation.PostConstruct;
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.SubcommandData;
-import net.dv8tion.jda.api.interactions.commands.OptionType;
 import org.springframework.stereotype.Component;
 
 @Component

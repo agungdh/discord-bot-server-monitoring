@@ -12,6 +12,10 @@ import java.util.Locale;
 @Component
 public class JapanHolidayCommand implements SlashCommand {
 
+    private static final DateTimeFormatter DATE_FMT =
+            DateTimeFormatter.ofPattern("d MMMM yyyy", new Locale("id", "ID"));
+    private static final DateTimeFormatter YM_FMT =
+            DateTimeFormatter.ofPattern("MMMM yyyy", new Locale("id", "ID"));
     private final JapanHolidayService holidayService;
 
     public JapanHolidayCommand(JapanHolidayService holidayService) {
@@ -22,12 +26,6 @@ public class JapanHolidayCommand implements SlashCommand {
     public String name() {
         return "jp-holiday";
     }
-
-    private static final DateTimeFormatter DATE_FMT =
-            DateTimeFormatter.ofPattern("d MMMM yyyy", new Locale("id", "ID"));
-
-    private static final DateTimeFormatter YM_FMT =
-            DateTimeFormatter.ofPattern("MMMM yyyy", new Locale("id", "ID"));
 
     @Override
     public void handle(SlashCommandInteractionEvent event) {
