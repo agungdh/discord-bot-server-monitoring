@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 @Component
 public class JapanHolidayCommand implements SlashCommand {
@@ -20,6 +22,12 @@ public class JapanHolidayCommand implements SlashCommand {
     public String name() {
         return "jp-holiday";
     }
+
+    private static final DateTimeFormatter DATE_FMT =
+            DateTimeFormatter.ofPattern("d MMMM yyyy", new Locale("id", "ID"));
+
+    private static final DateTimeFormatter YM_FMT =
+            DateTimeFormatter.ofPattern("MMMM yyyy", new Locale("id", "ID"));
 
     @Override
     public void handle(SlashCommandInteractionEvent event) {
@@ -42,10 +50,10 @@ public class JapanHolidayCommand implements SlashCommand {
         var opt = holidayService.getHoliday(todayJp);
         if (opt.isPresent()) {
             var h = opt.get();
-            event.reply("🎌 **Hari ini libur di Jepang** (" + todayJp + "): **" + h.name() + "**")
+            event.reply("🎌 **Hari ini libur di Jepang** (" + todayJp.format(DATE_FMT) + "): **" + h.name() + "**")
                     .setEphemeral(true).queue();
         } else {
-            event.reply("📅 Hari ini (" + todayJp + ") **bukan** hari libur di Jepang.")
+            event.reply("📅 Hari ini (" + todayJp.format(DATE_FMT) + ") **bukan** hari libur di Jepang.")
                     .setEphemeral(true).queue();
         }
     }
@@ -54,12 +62,12 @@ public class JapanHolidayCommand implements SlashCommand {
         var ymJp = YearMonth.from(LocalDate.now(JapanHolidayService.JAPAN_ZONE));
         var list = holidayService.getHolidaysInMonth(ymJp);
         if (list.isEmpty()) {
-            event.reply("📅 Bulan ini (" + ymJp + ") tidak ada libur di Jepang.")
+            event.reply("📅 Bulan ini (" + ymJp.format(YM_FMT) + ") tidak ada libur di Jepang.")
                     .setEphemeral(true).queue();
             return;
         }
-        var sb = new StringBuilder("🎌 Libur Jepang bulan **" + ymJp + "**:\n");
-        list.forEach(h -> sb.append("- `").append(h.date()).append("` — ").append(h.name()).append("\n"));
+        var sb = new StringBuilder("🎌 Libur Jepang bulan **" + ymJp.format(YM_FMT) + "**:\n");
+        list.forEach(h -> sb.append("- `").append(h.date().format(DATE_FMT)).append("` — ").append(h.name()).append("\n"));
         event.reply(sb.toString()).setEphemeral(true).queue();
     }
 
@@ -71,7 +79,8 @@ public class JapanHolidayCommand implements SlashCommand {
             return;
         }
         var sb = new StringBuilder("🎌 **Daftar libur Jepang " + year + "**:\n");
-        list.forEach(h -> sb.append("- `").append(h.date()).append("` — ").append(h.name()).append("\n"));
+        list.forEach(h -> sb.append("- `").append(h.date().format(DATE_FMT)).append("` — ").append(h.name()).append("\n"));
         event.reply(sb.toString()).setEphemeral(true).queue();
     }
+
 }
