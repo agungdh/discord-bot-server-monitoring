@@ -5,4 +5,5 @@ public record SendTextResponse(
         boolean success,
         String messageId,
         String error
-) {}
+) {
+}

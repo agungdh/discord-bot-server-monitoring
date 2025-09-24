@@ -5,4 +5,5 @@ public record WahaSendTextPayload(
         String session,
         String chatId,
         String text
-) {}
+) {
+}

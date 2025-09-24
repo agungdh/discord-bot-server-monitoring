@@ -56,7 +56,8 @@ public class WahaService {
 
         // 2) setelah delay non-blocking, stopTyping
         CompletableFuture<Void> stop = start.thenCompose(v ->
-                CompletableFuture.runAsync(() -> {}, CompletableFuture.delayedExecutor(typingDelayMs, TimeUnit.MILLISECONDS))
+                CompletableFuture.runAsync(() -> {
+                        }, CompletableFuture.delayedExecutor(typingDelayMs, TimeUnit.MILLISECONDS))
                         .thenCompose(v2 -> callTypingAsync("/api/stopTyping", chatId))
                         .exceptionally(ex -> {
                             System.err.println("Typing API error (/stopTyping): " + ex.getMessage());

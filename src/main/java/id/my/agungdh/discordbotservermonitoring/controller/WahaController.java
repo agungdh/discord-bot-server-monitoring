@@ -6,7 +6,10 @@ import id.my.agungdh.discordbotservermonitoring.DTO.waha.SendTextResponse;
 import id.my.agungdh.discordbotservermonitoring.service.WahaService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/whatsapp")

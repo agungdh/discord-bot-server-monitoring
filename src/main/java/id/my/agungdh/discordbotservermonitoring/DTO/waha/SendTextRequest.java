@@ -6,4 +6,5 @@ import jakarta.validation.constraints.NotBlank;
 public record SendTextRequest(
         @NotBlank String phone,
         @NotBlank String text
-) {}
+) {
+}

@@ -2,7 +2,8 @@
 package id.my.agungdh.discordbotservermonitoring.util;
 
 public final class ChatIdUtils {
-    private ChatIdUtils() {}
+    private ChatIdUtils() {
+    }
 
     public static String toChatId(String msisdn) {
         String digits = msisdn.replaceAll("[^0-9]", "");
