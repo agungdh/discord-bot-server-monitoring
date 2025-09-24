@@ -26,13 +26,13 @@ public class WakeUpReminder {
     }
 
     /** Tiap menit 19:30–19:34 WIB: masukkan job ke queue (worker kirim satu-satu) */
-    @Scheduled(cron = "0 42-44 19 * * *", zone = "Asia/Jakarta")
+    @Scheduled(cron = "0 49-51 20 * * *", zone = "Asia/Makassar")
     public void sendTapReminder() {
         if (reminderPhones.isEmpty()) {
             System.out.println("[WakeUpReminder] SKIP: waha.reminder.phones kosong/belum di-set");
             return;
         }
-        String text = "hey hey anak manis...";
+        String text = "halo halo ate imut :)";
         queue.enqueueAll(reminderPhones, text);
         System.out.println("[WakeUpReminder] Enqueued " + reminderPhones.size() + " jobs");
     }
