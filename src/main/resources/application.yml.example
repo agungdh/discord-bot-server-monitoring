@@ -14,4 +14,8 @@ pihole:
 waha:
   base-url: http://localhost:3000    # URL WAHA kamu
   session: default                   # nama session WAHA
-  api-key: your-secret              # opsional; kalau kamu pasang gateway sendiri
+  api-key: your-secret
+  reminder:
+    phones:
+      - "62xxxxxxxxxx"
+      - "62yyyyyyyyyy"
