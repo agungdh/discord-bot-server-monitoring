@@ -14,6 +14,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class WahaService {
@@ -38,73 +40,102 @@ public class WahaService {
     }
 
     /**
-     * Kirim teks dengan emulasi typing:
-     * startTyping -> (delay) -> stopTyping -> sendText
+     * VERSI NON-BLOCKING:
+     * startTyping -> (delay 500–1500ms non-blocking) -> stopTyping -> sendText
+     */
+    public CompletableFuture<SendTextResponse> sendTextAsync(String phone, String text) {
+        String chatId = ChatIdUtils.toChatId(phone);
+        long typingDelayMs = 500 + (long) (Math.random() * 1000);
+
+        // 1) startTyping (async, best-effort)
+        CompletableFuture<Void> start = callTypingAsync("/api/startTyping", chatId)
+                .exceptionally(ex -> {
+                    System.err.println("Typing API error (/startTyping): " + ex.getMessage());
+                    return null;
+                });
+
+        // 2) setelah delay non-blocking, stopTyping
+        CompletableFuture<Void> stop = start.thenCompose(v ->
+                CompletableFuture.runAsync(() -> {}, CompletableFuture.delayedExecutor(typingDelayMs, TimeUnit.MILLISECONDS))
+                        .thenCompose(v2 -> callTypingAsync("/api/stopTyping", chatId))
+                        .exceptionally(ex -> {
+                            System.err.println("Typing API error (/stopTyping): " + ex.getMessage());
+                            return null;
+                        })
+        );
+
+        // 3) kirim pesan setelah stopTyping (atau walau stopTyping gagal)
+        return stop.thenCompose(v -> {
+            WahaSendTextPayload payload = new WahaSendTextPayload(defaultSession, chatId, text);
+            return postJsonAsync("/api/sendText", payload)
+                    .thenApply(this::mapToSendTextResponse);
+        }).exceptionally(ex ->
+                new SendTextResponse(false, null, ex.getMessage())
+        );
+    }
+
+    /**
+     * VERSI SINKRON (tetap disediakan untuk kompatibilitas controller lama).
+     * Ini akan mem-BLOCK thread pemanggil (gunakan hanya kalau memang perlu).
      */
     public SendTextResponse sendText(String phone, String text) {
         try {
-            String chatId = ChatIdUtils.toChatId(phone);
-
-            // 1) Start typing
-            callTyping("/api/startTyping", chatId);
-
-            // 2) Delay random 500–1500 ms
-            long typingDelayMs = 500 + (long) (Math.random() * 1000);
-            try { Thread.sleep(typingDelayMs); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
-
-            // 3) Stop typing
-            callTyping("/api/stopTyping", chatId);
-
-            // 4) Kirim pesan
-            WahaSendTextPayload payload = new WahaSendTextPayload(defaultSession, chatId, text);
-            Map<String, Object> body = postJson("/api/sendText", payload);
-
-            Object successObj = body.getOrDefault("success", Boolean.TRUE);
-            boolean success = (successObj instanceof Boolean) ? (Boolean) successObj : true;
-
-            String id = body.containsKey("id") ? String.valueOf(body.get("id"))
-                    : (body.containsKey("messageId") ? String.valueOf(body.get("messageId")) : null);
-
-            return new SendTextResponse(success, id, null);
-
+            return sendTextAsync(phone, text).get(); // blocking
         } catch (Exception e) {
             return new SendTextResponse(false, null, e.getMessage());
         }
     }
 
-    /* ====================== Helpers ====================== */
+    /* ====================== Helpers (async) ====================== */
 
-    private void callTyping(String path, String chatId) {
+    private CompletableFuture<Void> callTypingAsync(String path, String chatId) {
+        WahaSendTextPayload payload = new WahaSendTextPayload(defaultSession, chatId, null);
+        return postJsonAsync(path, payload).thenApply(m -> null);
+    }
+
+    private CompletableFuture<Map<String, Object>> postJsonAsync(String path, Object bodyObj) {
         try {
-            WahaSendTextPayload payload = new WahaSendTextPayload(defaultSession, chatId, null);
-            postJson(path, payload);
-        } catch (Exception ex) {
-            // best-effort; jangan gagalkan seluruh flow hanya karena typing gagal
-            System.err.println("Typing API error (" + path + "): " + ex.getMessage());
+            String json = om.writeValueAsString(bodyObj);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + path))
+                    .timeout(Duration.ofSeconds(30))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .header("X-API-KEY", apiKey)
+                    .header("User-Agent", "curl/8.5.0")
+                    .POST(HttpRequest.BodyPublishers.ofString(json)) // Content-Length, bukan chunked
+                    .build();
+
+            return httpClient.sendAsync(req, HttpResponse.BodyHandlers.ofString())
+                    .thenApply(resp -> {
+                        if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
+                            String body = resp.body();
+                            try {
+                                if (body == null || body.isBlank()) return Map.of();
+                                //noinspection unchecked
+                                return om.readValue(body, Map.class);
+                            } catch (Exception e) {
+                                throw new RuntimeException("Parse response error: " + e.getMessage());
+                            }
+                        } else {
+                            throw new RuntimeException("HTTP " + resp.statusCode() + ": " + resp.body());
+                        }
+                    });
+
+        } catch (Exception e) {
+            CompletableFuture<Map<String, Object>> cf = new CompletableFuture<>();
+            cf.completeExceptionally(e);
+            return cf;
         }
     }
 
-    private Map<String, Object> postJson(String path, Object bodyObj) throws Exception {
-        String json = om.writeValueAsString(bodyObj);
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + path))
-                .timeout(Duration.ofSeconds(30))
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .header("X-API-KEY", apiKey)
-                .header("User-Agent", "curl/8.5.0")
-                .POST(HttpRequest.BodyPublishers.ofString(json)) // Content-Length, bukan chunked
-                .build();
+    private SendTextResponse mapToSendTextResponse(Map<String, Object> body) {
+        Object successObj = body.getOrDefault("success", Boolean.TRUE);
+        boolean success = (successObj instanceof Boolean) ? (Boolean) successObj : true;
 
-        HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+        String id = body.containsKey("id") ? String.valueOf(body.get("id"))
+                : (body.containsKey("messageId") ? String.valueOf(body.get("messageId")) : null);
 
-        if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
-            String body = resp.body();
-            if (body == null || body.isBlank()) return Map.of();
-            //noinspection unchecked
-            return om.readValue(body, Map.class);
-        } else {
-            throw new RuntimeException("HTTP " + resp.statusCode() + ": " + resp.body());
-        }
+        return new SendTextResponse(success, id, null);
     }
 }
