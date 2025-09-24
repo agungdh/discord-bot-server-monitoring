@@ -29,14 +29,27 @@ public class WakeUpReminder {
                 .toList();
     }
 
-    @Scheduled(cron = "0 * * * * *", zone = "Asia/Jakarta")
-    public void sendTapReminder() {
+    /** Tiap 10 menit antara jam 09:00–09:59 WITA */
+    @Scheduled(cron = "0 0/10 9 * * *", zone = "Asia/Makassar")
+    public void remindGirlfriend() {
         if (reminderPhones.isEmpty()) {
             log.warn("SKIP: waha.reminder.phones kosong/belum di-set");
             return;
         }
-        String text = "halo halo ate imut :)";
+        String text = "Sayang ❤️ jangan lupa ya, bangunin aku jam 10 nanti!";
         queue.enqueueAll(reminderPhones, text);
-        log.info("Enqueued {} jobs", reminderPhones.size());
+        log.info("Enqueued {} jobs for reminder before 10", reminderPhones.size());
+    }
+
+    /** Tepat jam 10:00 WITA */
+    @Scheduled(cron = "0 0 10 * * *", zone = "Asia/Makassar")
+    public void finalWakeUpCall() {
+        if (reminderPhones.isEmpty()) {
+            log.warn("SKIP: waha.reminder.phones kosong/belum di-set");
+            return;
+        }
+        String text = "Udah jam 10! 📞 Tolong telpon ke nomor utamaku ya 😘";
+        queue.enqueueAll(reminderPhones, text);
+        log.info("Enqueued {} jobs for FINAL wakeup call", reminderPhones.size());
     }
 }
