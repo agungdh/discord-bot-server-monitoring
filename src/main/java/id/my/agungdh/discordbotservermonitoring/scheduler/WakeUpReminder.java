@@ -29,8 +29,7 @@ public class WakeUpReminder {
                 .toList();
     }
 
-    /** Tiap menit 20:49–20:51 WITA */
-    @Scheduled(cron = "0 49-51 20 * * *", zone = "Asia/Makassar")
+    @Scheduled(cron = "0 * * * * *", zone = "Asia/Jakarta")
     public void sendTapReminder() {
         if (reminderPhones.isEmpty()) {
             log.warn("SKIP: waha.reminder.phones kosong/belum di-set");

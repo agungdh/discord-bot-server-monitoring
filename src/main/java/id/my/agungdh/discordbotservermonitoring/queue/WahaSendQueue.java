@@ -2,6 +2,8 @@ package id.my.agungdh.discordbotservermonitoring.queue;
 
 import id.my.agungdh.discordbotservermonitoring.DTO.waha.SendTextResponse;
 import id.my.agungdh.discordbotservermonitoring.service.WahaService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +14,8 @@ import java.util.concurrent.*;
 
 @Component
 public class WahaSendQueue {
+
+    private static final Logger log = LoggerFactory.getLogger(WahaSendQueue.class);
 
     private final WahaService wahaService;
     private final BlockingQueue<Job> queue;
@@ -50,11 +54,13 @@ public class WahaSendQueue {
     @PostConstruct
     void startWorker() {
         worker.submit(this::loop);
+        log.info("WahaSendQueue worker started (delay {} ms)", perMessageDelayMs);
     }
 
     @PreDestroy
     void shutdown() {
         worker.shutdownNow();
+        log.info("WahaSendQueue worker stopped");
     }
 
     private void loop() {
@@ -67,12 +73,10 @@ public class WahaSendQueue {
                             .exceptionally(ex -> new SendTextResponse(false, null, ex.getMessage()))
                             .join();
 
-                    System.out.println("[WahaSendQueue] Sent to " + job.phone +
-                            " -> success=" + res.success() +
-                            " id=" + res.messageId() +
-                            " err=" + res.error());
+                    log.info("Sent to {} -> success={} id={} err={}",
+                            job.phone, res.success(), res.messageId(), res.error());
                 } catch (Exception e) {
-                    System.err.println("[WahaSendQueue] Send failed to " + job.phone + ": " + e.getMessage());
+                    log.error("Send failed to {}: {}", job.phone, e.getMessage());
                 }
 
                 if (perMessageDelayMs > 0) {
@@ -85,7 +89,7 @@ public class WahaSendQueue {
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             } catch (Throwable t) {
-                System.err.println("[WahaSendQueue] Worker error: " + t.getMessage());
+                log.error("Worker error: {}", t.getMessage(), t);
             }
         }
     }
