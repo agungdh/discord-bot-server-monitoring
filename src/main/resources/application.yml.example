@@ -16,6 +16,4 @@ waha:
   session: default                   # nama session WAHA
   api-key: your-secret
   reminder:
-    phones:
-      - "62xxxxxxxxxx"
-      - "62yyyyyyyyyy"
+    phones: "62xx,62yy"
