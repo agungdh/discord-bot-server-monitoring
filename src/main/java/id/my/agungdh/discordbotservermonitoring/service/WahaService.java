@@ -49,7 +49,6 @@ public class WahaService {
                     .header("Content-Type", "application/json")
                     .header("Accept", "application/json")
                     .header("X-API-KEY", apiKey)
-                    .header("Connection", "close")
                     .header("User-Agent", "curl/8.5.0")
                     .POST(HttpRequest.BodyPublishers.ofString(json))
                     .build();
