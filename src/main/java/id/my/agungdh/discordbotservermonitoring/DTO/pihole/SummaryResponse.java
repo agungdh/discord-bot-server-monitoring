@@ -1,4 +1,4 @@
-package id.my.agungdh.discordbotservermonitoring.DTO;
+package id.my.agungdh.discordbotservermonitoring.DTO.pihole;
 
 import java.util.Map;
 

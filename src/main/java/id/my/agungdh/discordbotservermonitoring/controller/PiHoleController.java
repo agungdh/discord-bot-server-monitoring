@@ -1,8 +1,8 @@
 package id.my.agungdh.discordbotservermonitoring.controller;
 
-import id.my.agungdh.discordbotservermonitoring.DTO.SessionWrapper;
-import id.my.agungdh.discordbotservermonitoring.DTO.SummaryResponse;
-import id.my.agungdh.discordbotservermonitoring.DTO.TopDomainsResponse;
+import id.my.agungdh.discordbotservermonitoring.DTO.pihole.SessionWrapper;
+import id.my.agungdh.discordbotservermonitoring.DTO.pihole.SummaryResponse;
+import id.my.agungdh.discordbotservermonitoring.DTO.pihole.TopDomainsResponse;
 import id.my.agungdh.discordbotservermonitoring.service.PiHoleClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

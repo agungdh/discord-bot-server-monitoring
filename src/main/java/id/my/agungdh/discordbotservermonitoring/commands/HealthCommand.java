@@ -1,7 +1,7 @@
 package id.my.agungdh.discordbotservermonitoring.commands;
 
-import id.my.agungdh.discordbotservermonitoring.DTO.BlockListResponse;
-import id.my.agungdh.discordbotservermonitoring.DTO.SummaryResponse;
+import id.my.agungdh.discordbotservermonitoring.DTO.pihole.BlockListResponse;
+import id.my.agungdh.discordbotservermonitoring.DTO.pihole.SummaryResponse;
 import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.MetricsDTO;
 import id.my.agungdh.discordbotservermonitoring.service.MetricsService;
 import id.my.agungdh.discordbotservermonitoring.service.PiHoleClient;

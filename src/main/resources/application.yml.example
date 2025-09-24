@@ -11,3 +11,7 @@ pihole:
   base-url: http://pi.hole:80
   password:
   relogin-interval-ms: 1500000
+waha:
+  base-url: http://localhost:3000    # URL WAHA kamu
+  session: default                   # nama session WAHA
+  api-key: your-secret              # opsional; kalau kamu pasang gateway sendiri
