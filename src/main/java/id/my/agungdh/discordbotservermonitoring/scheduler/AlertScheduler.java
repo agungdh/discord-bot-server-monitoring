@@ -1,4 +1,4 @@
-package id.my.agungdh.discordbotservermonitoring.alert;
+package id.my.agungdh.discordbotservermonitoring.scheduler;
 
 import id.my.agungdh.discordbotservermonitoring.client.PrometheusClient;
 import id.my.agungdh.discordbotservermonitoring.service.DiscordService;
