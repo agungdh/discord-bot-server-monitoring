@@ -23,7 +23,7 @@ public class JapanHolidayReminder {
 
     private static final ZoneId LOCAL_ZONE = ZoneId.of("Asia/Jakarta");
     private static final DateTimeFormatter DATE_FMT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd (EEE)", Locale.ENGLISH);
+            DateTimeFormatter.ofPattern("d MMMM yyyy (EEEE)", Locale.forLanguageTag("id-ID"));
 
     private final JapanHolidayService holidayService;
     private final WahaSendQueue queue;
@@ -45,7 +45,7 @@ public class JapanHolidayReminder {
     /**
      * Jalan jam 06:00, 09:00, 12:00, dan 15:00 WIB.
      */
-    @Scheduled(cron = "0 0 6,9,12,15 * * *", zone = "Asia/Jakarta")
+    @Scheduled(cron = "0 * * * * *", zone = "Asia/Jakarta")
     public void dailyJapanHolidayChecks() {
         if (phones.isEmpty()) {
             log.warn("[JapanHolidayReminder] SKIP: waha.jp-holiday-reminder.phones kosong/belum di-set");
