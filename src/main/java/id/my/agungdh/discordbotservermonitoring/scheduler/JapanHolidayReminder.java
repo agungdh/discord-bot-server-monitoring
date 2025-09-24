@@ -1,4 +1,3 @@
-// src/main/java/id/my/agungdh/discordbotservermonitoring/scheduler/JapanHolidayReminder.java
 package id.my.agungdh.discordbotservermonitoring.scheduler;
 
 import id.my.agungdh.discordbotservermonitoring.queue.WahaSendQueue;
@@ -44,11 +43,9 @@ public class JapanHolidayReminder {
     }
 
     /**
-     * Cek tiap hari jam 08:00 WIB:
-     * - Jika BESOK libur Jepang (H-1) => kirim reminder H-1
-     * - Jika HARI INI libur Jepang (H)  => kirim reminder hari-H
+     * Jalan jam 06:00, 09:00, 12:00, dan 15:00 WIB.
      */
-    @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Jakarta")
+    @Scheduled(cron = "0 0 6,9,12,15 * * *", zone = "Asia/Jakarta")
     public void dailyJapanHolidayChecks() {
         if (phones.isEmpty()) {
             log.warn("[JapanHolidayReminder] SKIP: waha.jp-holiday-reminder.phones kosong/belum di-set");
@@ -58,7 +55,7 @@ public class JapanHolidayReminder {
         LocalDate today = LocalDate.now(LOCAL_ZONE);
         LocalDate tomorrow = today.plusDays(1);
 
-        // H-1
+        // Reminder H-1
         holidayService.getHoliday(tomorrow).ifPresent(h -> {
             String msg = buildHMinusOneMessage(h);
             queue.enqueueAll(phones, msg);
@@ -66,7 +63,7 @@ public class JapanHolidayReminder {
                     h.name(), h.date().format(DATE_FMT), phones.size());
         });
 
-        // Hari-H
+        // Reminder hari-H
         holidayService.getHoliday(today).ifPresent(h -> {
             String msg = buildTodayMessage(h);
             queue.enqueueAll(phones, msg);
