@@ -2,13 +2,13 @@ package id.my.agungdh.discordbotservermonitoring.queue;
 
 import id.my.agungdh.discordbotservermonitoring.DTO.waha.SendTextResponse;
 import id.my.agungdh.discordbotservermonitoring.service.WahaService;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import java.util.List;
 import java.util.concurrent.*;
 
@@ -24,7 +24,7 @@ public class WahaSendQueue {
 
     public WahaSendQueue(
             WahaService wahaService,
-            @Value("${waha.reminder.per-message-delay-ms:10000}") long perMessageDelayMs
+            @Value("${waha.per-message-delay-ms:10000}") long perMessageDelayMs
     ) {
         this.wahaService = wahaService;
         this.perMessageDelayMs = Math.max(0, perMessageDelayMs);
@@ -54,13 +54,13 @@ public class WahaSendQueue {
     @PostConstruct
     void startWorker() {
         worker.submit(this::loop);
-        log.info("WahaSendQueue worker started (delay {} ms)", perMessageDelayMs);
+        log.info("[WahaSendQueue] Worker started with per-message-delay-ms={} ms", perMessageDelayMs);
     }
 
     @PreDestroy
     void shutdown() {
         worker.shutdownNow();
-        log.info("WahaSendQueue worker stopped");
+        log.info("[WahaSendQueue] Worker stopped");
     }
 
     private void loop() {
@@ -73,10 +73,10 @@ public class WahaSendQueue {
                             .exceptionally(ex -> new SendTextResponse(false, null, ex.getMessage()))
                             .join();
 
-                    log.info("Sent to {} -> success={} id={} err={}",
+                    log.info("[WahaSendQueue] Sent to {} -> success={} id={} err={}",
                             job.phone, res.success(), res.messageId(), res.error());
                 } catch (Exception e) {
-                    log.error("Send failed to {}: {}", job.phone, e.getMessage());
+                    log.error("[WahaSendQueue] Send failed to {}: {}", job.phone, e.getMessage(), e);
                 }
 
                 if (perMessageDelayMs > 0) {
@@ -89,7 +89,7 @@ public class WahaSendQueue {
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             } catch (Throwable t) {
-                log.error("Worker error: {}", t.getMessage(), t);
+                log.error("[WahaSendQueue] Worker error: {}", t.getMessage(), t);
             }
         }
     }

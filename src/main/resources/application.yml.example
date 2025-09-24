@@ -15,6 +15,8 @@ waha:
   base-url: http://localhost:3000    # URL WAHA kamu
   session: default                   # nama session WAHA
   api-key: your-secret
+  per-message-delay-ms: 2300   # 2.3 detik antar pesan (bebas ganti)
   reminder:
     phones: "62xx,62yy"
-    per-message-delay-ms: 2300   # 2.3 detik antar pesan (bebas ganti)
+  jp-holiday-reminder:
+    phones: "62zz,62aa"
