@@ -2,7 +2,6 @@ package id.my.agungdh.discordbotservermonitoring.commands;
 
 import id.my.agungdh.discordbotservermonitoring.DTO.BlockListResponse;
 import id.my.agungdh.discordbotservermonitoring.DTO.SummaryResponse;
-import id.my.agungdh.discordbotservermonitoring.DTO.TopDomainsResponse;
 import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.MetricsDTO;
 import id.my.agungdh.discordbotservermonitoring.service.MetricsService;
 import id.my.agungdh.discordbotservermonitoring.service.PiHoleClient;
@@ -52,14 +51,6 @@ public class HealthCommand implements SlashCommand {
                 }
             }).orTimeout(30, TimeUnit.SECONDS);
 
-            CompletableFuture<TopDomainsResponse> topBlockedFut = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return piHoleClient.getTopBlockedDomains(10);
-                } catch (Exception e) {
-                    return null;
-                }
-            }).orTimeout(30, TimeUnit.SECONDS);
-
             CompletableFuture<BlockListResponse> blockListsFut = CompletableFuture.supplyAsync(() -> {
                 try {
                     return piHoleClient.getBlockLists();
@@ -68,7 +59,7 @@ public class HealthCommand implements SlashCommand {
                 }
             }).orTimeout(30, TimeUnit.SECONDS);
 
-            CompletableFuture.allOf(metricsFut, piholeSummaryFut, topBlockedFut, blockListsFut)
+            CompletableFuture.allOf(metricsFut, piholeSummaryFut, blockListsFut)
                     .orTimeout(7, TimeUnit.MINUTES)
                     .whenComplete((ignored, err) -> {
                         if (err != null) {
@@ -78,7 +69,6 @@ public class HealthCommand implements SlashCommand {
 
                         MetricsDTO m = metricsFut.getNow(null);
                         SummaryResponse s = piholeSummaryFut.getNow(null);
-                        TopDomainsResponse tb = topBlockedFut.getNow(null);
                         BlockListResponse bl = blockListsFut.getNow(null);
 
                         if (m == null) {
@@ -155,20 +145,7 @@ public class HealthCommand implements SlashCommand {
                             eb.addField("Pi-hole", "_unavailable_", false);
                         }
 
-                        // ===== 3) Top 10 Blocked Only =====
-                        if (tb != null && tb.domains() != null && !tb.domains().isEmpty()) {
-                            StringBuilder topBlocked = new StringBuilder();
-                            int i = 1;
-                            for (var d : tb.domains()) {
-                                topBlocked.append(i++)
-                                        .append(". `").append(MessageUtils.safe(d.domain())).append("` ")
-                                        .append("(").append(d.count()).append(")\n");
-                            }
-                            eb.addBlankField(false);
-                            eb.addField("🚫 Top Blocked", topBlocked.toString(), true);
-                        }
-
-                        // ===== 4) Block Lists (type=block) =====
+                        // ===== 3) Block Lists (type=block) =====
                         if (bl != null && bl.lists() != null && !bl.lists().isEmpty()) {
                             StringBuilder sb = new StringBuilder();
                             for (var item : bl.lists()) {
@@ -180,7 +157,7 @@ public class HealthCommand implements SlashCommand {
                             eb.addField("Block Lists", sb.toString(), false);
                         }
 
-                        // ===== 5) Storage & Network pagination (dipotong 1800 char) =====
+                        // ===== 4) Storage & Network pagination (dipotong 1800 char) =====
                         List<String> diskParts = new ArrayList<>();
                         if (m.storage() != null && !m.storage().isEmpty()) {
                             StringBuilder all = new StringBuilder(4096);
