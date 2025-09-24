@@ -48,11 +48,11 @@ public class WahaService {
             // 1) Start typing
             callTyping("/api/startTyping", chatId);
 
-            // 2) Delay "ngetik" yang realistis (±50ms/karakter, min 800ms, max 3500ms)
-            long typingDelayMs = Math.max(800, Math.min(3500, (text != null ? text.length() : 0) * 50L));
+            // 2) Delay random 500–1500 ms
+            long typingDelayMs = 500 + (long) (Math.random() * 1000);
             try { Thread.sleep(typingDelayMs); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
 
-            // 3) Stop typing (best-effort)
+            // 3) Stop typing
             callTyping("/api/stopTyping", chatId);
 
             // 4) Kirim pesan
