@@ -52,14 +52,6 @@ public class HealthCommand implements SlashCommand {
                 }
             }).orTimeout(30, TimeUnit.SECONDS);
 
-            CompletableFuture<TopDomainsResponse> topDomainsFut = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return piHoleClient.getTopDomains(10);
-                } catch (Exception e) {
-                    return null;
-                }
-            }).orTimeout(30, TimeUnit.SECONDS);
-
             CompletableFuture<TopDomainsResponse> topBlockedFut = CompletableFuture.supplyAsync(() -> {
                 try {
                     return piHoleClient.getTopBlockedDomains(10);
@@ -76,7 +68,7 @@ public class HealthCommand implements SlashCommand {
                 }
             }).orTimeout(30, TimeUnit.SECONDS);
 
-            CompletableFuture.allOf(metricsFut, piholeSummaryFut, topDomainsFut, topBlockedFut, blockListsFut)
+            CompletableFuture.allOf(metricsFut, piholeSummaryFut, topBlockedFut, blockListsFut)
                     .orTimeout(7, TimeUnit.MINUTES)
                     .whenComplete((ignored, err) -> {
                         if (err != null) {
@@ -86,7 +78,6 @@ public class HealthCommand implements SlashCommand {
 
                         MetricsDTO m = metricsFut.getNow(null);
                         SummaryResponse s = piholeSummaryFut.getNow(null);
-                        TopDomainsResponse td = topDomainsFut.getNow(null);
                         TopDomainsResponse tb = topBlockedFut.getNow(null);
                         BlockListResponse bl = blockListsFut.getNow(null);
 
@@ -164,37 +155,17 @@ public class HealthCommand implements SlashCommand {
                             eb.addField("Pi-hole", "_unavailable_", false);
                         }
 
-                        // ===== 3) Top 10 Domains & Top 10 Blocked =====
-                        if ((td != null && td.domains() != null && !td.domains().isEmpty())
-                                || (tb != null && tb.domains() != null && !tb.domains().isEmpty())) {
-
-                            StringBuilder topNormal = new StringBuilder();
-                            if (td != null && td.domains() != null) {
-                                int i = 1;
-                                for (var d : td.domains()) {
-                                    topNormal.append(i++)
-                                            .append(". `").append(MessageUtils.safe(d.domain())).append("` ")
-                                            .append("(").append(d.count()).append(")\n");
-                                }
-                            }
-
+                        // ===== 3) Top 10 Blocked Only =====
+                        if (tb != null && tb.domains() != null && !tb.domains().isEmpty()) {
                             StringBuilder topBlocked = new StringBuilder();
-                            if (tb != null && tb.domains() != null) {
-                                int i = 1;
-                                for (var d : tb.domains()) {
-                                    topBlocked.append(i++)
-                                            .append(". `").append(MessageUtils.safe(d.domain())).append("` ")
-                                            .append("(").append(d.count()).append(")\n");
-                                }
+                            int i = 1;
+                            for (var d : tb.domains()) {
+                                topBlocked.append(i++)
+                                        .append(". `").append(MessageUtils.safe(d.domain())).append("` ")
+                                        .append("(").append(d.count()).append(")\n");
                             }
-
                             eb.addBlankField(false);
-                            if (topNormal.length() > 0) {
-                                eb.addField("🌐 Top Domains", topNormal.toString(), true);
-                            }
-                            if (topBlocked.length() > 0) {
-                                eb.addField("🚫 Top Blocked", topBlocked.toString(), true);
-                            }
+                            eb.addField("🚫 Top Blocked", topBlocked.toString(), true);
                         }
 
                         // ===== 4) Block Lists (type=block) =====
