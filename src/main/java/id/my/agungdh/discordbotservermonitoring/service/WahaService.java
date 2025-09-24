@@ -38,6 +38,7 @@ public class WahaService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON)); // <—
         headers.set("X-API-KEY", apiKey); // <— tambahkan di sini
         HttpEntity<WahaSendTextPayload> entity = new HttpEntity<>(payload, headers);
 
