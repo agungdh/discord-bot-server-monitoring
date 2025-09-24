@@ -36,12 +36,16 @@ public class WahaSendQueue {
         });
     }
 
-    /** Enqueue satu nomor */
+    /**
+     * Enqueue satu nomor
+     */
     public void enqueue(String phone, String text) {
         queue.offer(new Job(phone, text));
     }
 
-    /** Enqueue banyak nomor */
+    /**
+     * Enqueue banyak nomor
+     */
     public void enqueueAll(List<String> phones, String text) {
         if (phones == null) return;
         for (String p : phones) {
@@ -94,5 +98,6 @@ public class WahaSendQueue {
         }
     }
 
-    private record Job(String phone, String text) {}
+    private record Job(String phone, String text) {
+    }
 }

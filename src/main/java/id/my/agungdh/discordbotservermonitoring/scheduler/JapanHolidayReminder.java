@@ -42,7 +42,9 @@ public class JapanHolidayReminder {
                 .toList();
     }
 
-    /** Jalan jam 06:00, 09:00, 12:00, dan 15:00 WIB. */
+    /**
+     * Jalan jam 06:00, 09:00, 12:00, dan 15:00 WIB.
+     */
     @Scheduled(cron = "0 0 6,9,12,15 * * *", zone = "Asia/Jakarta")
     public void dailyJapanHolidayChecks() {
         if (phones.isEmpty()) {

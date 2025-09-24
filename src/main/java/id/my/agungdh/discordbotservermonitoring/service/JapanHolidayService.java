@@ -62,5 +62,6 @@ public class JapanHolidayService {
         return HOLIDAYS_BY_YEAR.getOrDefault(year, List.of());
     }
 
-    public record Holiday(LocalDate date, String name) {}
+    public record Holiday(LocalDate date, String name) {
+    }
 }

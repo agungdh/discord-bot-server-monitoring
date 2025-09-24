@@ -29,7 +29,9 @@ public class WakeUpReminder {
                 .toList();
     }
 
-    /** Tiap 10 menit antara jam 09:00–09:59 WITA */
+    /**
+     * Tiap 10 menit antara jam 09:00–09:59 WITA
+     */
     @Scheduled(cron = "0 0/10 9 * * *", zone = "Asia/Makassar")
     public void remindGirlfriend() {
         if (reminderPhones.isEmpty()) {
@@ -41,7 +43,9 @@ public class WakeUpReminder {
         log.info("Enqueued {} jobs for reminder before 10", reminderPhones.size());
     }
 
-    /** Tepat jam 10:00 WITA */
+    /**
+     * Tepat jam 10:00 WITA
+     */
     @Scheduled(cron = "0 0 10 * * *", zone = "Asia/Makassar")
     public void finalWakeUpCall() {
         if (reminderPhones.isEmpty()) {
