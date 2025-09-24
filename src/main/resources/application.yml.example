@@ -17,3 +17,4 @@ waha:
   api-key: your-secret
   reminder:
     phones: "62xx,62yy"
+    per-message-delay-ms: 2300   # 2.3 detik antar pesan (bebas ganti)
