@@ -1,4 +1,4 @@
-name: Build JVM & Push Docker image
+name: Build JVM & Push Docker image X86
 
 on:
   push:
@@ -11,7 +11,7 @@ env:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
 
     steps:
       - name: Checkout
