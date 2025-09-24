@@ -35,10 +35,9 @@ public class JapanHolidayService {
             new Holiday(LocalDate.of(2025, 10, 13), "Sports Day"),
             new Holiday(LocalDate.of(2025, 11, 3), "Culture Day"),
             new Holiday(LocalDate.of(2025, 11, 23), "Labor Thanksgiving Day"),
-            new Holiday(LocalDate.of(2025, 9, 24), "Zehaha Libur Hari Ini Yeey"),
-            new Holiday(LocalDate.of(2025, 9, 25), "Zehaha Libur Besok Yeey"),
             new Holiday(LocalDate.of(2025, 11, 24), "Substitute Holiday (Labor Thanksgiving Day)")
     );
+
     private static final Map<Integer, List<Holiday>> HOLIDAYS_BY_YEAR = Map.of(
             2025, HOLIDAYS_2025.stream()
                     .sorted(Comparator.comparing(Holiday::date))
@@ -63,6 +62,5 @@ public class JapanHolidayService {
         return HOLIDAYS_BY_YEAR.getOrDefault(year, List.of());
     }
 
-    public record Holiday(LocalDate date, String name) {
-    }
+    public record Holiday(LocalDate date, String name) {}
 }
