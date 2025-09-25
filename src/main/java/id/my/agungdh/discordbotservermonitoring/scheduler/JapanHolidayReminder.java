@@ -1,3 +1,4 @@
+// src/main/java/id/my/agungdh/discordbotservermonitoring/scheduler/JapanHolidayReminder.java
 package id.my.agungdh.discordbotservermonitoring.scheduler;
 
 import id.my.agungdh.discordbotservermonitoring.queue.WahaSendQueue;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -43,7 +45,9 @@ public class JapanHolidayReminder {
     }
 
     /**
-     * Jalan jam 06:00, 09:00, 12:00, dan 15:00 WIB (Senin–Jumat)
+     * Jalan jam 06:00, 09:00, 12:00, dan 15:00 WIB (Senin–Jumat).
+     * - H-1: SKIP kalau besok adalah Sabtu/Minggu.
+     * - Hari H: kirim normal (scheduler hanya jalan di weekdays).
      */
     @Scheduled(cron = "0 0 6,9,12,15 * * 1-5", zone = "Asia/Jakarta")
     public void dailyJapanHolidayChecks() {
@@ -55,15 +59,21 @@ public class JapanHolidayReminder {
         LocalDate today = LocalDate.now(LOCAL_ZONE);
         LocalDate tomorrow = today.plusDays(1);
 
-        // H-1
-        holidayService.getHoliday(tomorrow).ifPresent(h -> {
-            String msg = buildHMinusOneMessage(h);
-            queue.enqueueAll(phones, msg);
-            log.info("[JapanHolidayReminder] Enqueued H-1 for {} ({}) -> {} recipients",
-                    h.name(), h.date().format(DATE_FMT), phones.size());
-        });
+        // H-1 — skip kalau besok weekend
+        DayOfWeek dowTomorrow = tomorrow.getDayOfWeek();
+        boolean isTomorrowWeekend = (dowTomorrow == DayOfWeek.SATURDAY || dowTomorrow == DayOfWeek.SUNDAY);
+        if (!isTomorrowWeekend) {
+            holidayService.getHoliday(tomorrow).ifPresent(h -> {
+                String msg = buildHMinusOneMessage(h);
+                queue.enqueueAll(phones, msg);
+                log.info("[JapanHolidayReminder] Enqueued H-1 for {} ({}) -> {} recipients",
+                        h.name(), h.date().format(DATE_FMT), phones.size());
+            });
+        } else {
+            log.info("[JapanHolidayReminder] SKIP H-1 karena besok weekend ({})", dowTomorrow);
+        }
 
-        // Hari-H
+        // Hari-H (scheduler weekdays, jadi today sudah pasti Mon–Fri)
         holidayService.getHoliday(today).ifPresent(h -> {
             String msg = buildTodayMessage(h);
             queue.enqueueAll(phones, msg);
