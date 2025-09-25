@@ -43,9 +43,9 @@ public class JapanHolidayReminder {
     }
 
     /**
-     * Jalan jam 06:00, 09:00, 12:00, dan 15:00 WIB.
+     * Jalan jam 06:00, 09:00, 12:00, dan 15:00 WIB (Senin–Jumat)
      */
-    @Scheduled(cron = "0 0 6,9,12,15 * * *", zone = "Asia/Jakarta")
+    @Scheduled(cron = "0 0 6,9,12,15 * * 1-5", zone = "Asia/Jakarta")
     public void dailyJapanHolidayChecks() {
         if (phones.isEmpty()) {
             log.warn("[JapanHolidayReminder] SKIP: waha.jp-holiday-reminder.phones kosong/belum di-set");

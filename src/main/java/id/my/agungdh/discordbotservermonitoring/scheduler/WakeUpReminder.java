@@ -30,9 +30,9 @@ public class WakeUpReminder {
     }
 
     /**
-     * Tiap 10 menit antara jam 09:00–09:59 WITA
+     * Tiap 10 menit antara jam 09:00–09:59 WITA (Senin–Jumat)
      */
-    @Scheduled(cron = "0 0/10 9 * * *", zone = "Asia/Makassar")
+    @Scheduled(cron = "0 0/10 9 * * 1-5", zone = "Asia/Makassar")
     public void remindGirlfriend() {
         if (reminderPhones.isEmpty()) {
             log.warn("SKIP: waha.reminder.phones kosong/belum di-set");
@@ -44,9 +44,9 @@ public class WakeUpReminder {
     }
 
     /**
-     * Tepat jam 10:00 WITA
+     * Tepat jam 10:00 WITA (Senin–Jumat)
      */
-    @Scheduled(cron = "0 0 10 * * *", zone = "Asia/Makassar")
+    @Scheduled(cron = "0 0 10 * * 1-5", zone = "Asia/Makassar")
     public void finalWakeUpCall() {
         if (reminderPhones.isEmpty()) {
             log.warn("SKIP: waha.reminder.phones kosong/belum di-set");
