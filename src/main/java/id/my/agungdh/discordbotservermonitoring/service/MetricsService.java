@@ -29,7 +29,10 @@ public class MetricsService {
 
     @Async("commandExecutor")
     public CompletableFuture<MetricsDTO> snapshotAsync(boolean includeNetwork) {
-        try { return CompletableFuture.completedFuture(snapshot(includeNetwork)); }
-        catch (Exception e) { return CompletableFuture.failedFuture(e); }
+        try {
+            return CompletableFuture.completedFuture(snapshot(includeNetwork));
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 }

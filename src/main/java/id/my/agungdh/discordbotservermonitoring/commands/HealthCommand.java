@@ -10,7 +10,7 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import org.springframework.stereotype.Component;
 
-import java.awt.Color;
+import java.awt.*;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,91 +29,6 @@ public class HealthCommand implements SlashCommand {
         this.nodeMetricsService = nodeMetricsService;
         this.piHoleClient = piHoleClient;
     }
-
-    @Override
-    public String name() {
-        return "health";
-    }
-
-    @Override
-    public void handle(SlashCommandInteractionEvent event) {
-        event.deferReply()/* .setEphemeral(true) */.queue(hook -> {
-
-            // Ambil semua node paralel + Pi-hole
-            CompletableFuture<Map<String, MetricsDTO>> nodesFut = nodeMetricsService.snapshotAllAsync(true)
-                    .orTimeout(5, TimeUnit.MINUTES);
-
-            CompletableFuture<SummaryResponse> piholeSummaryFut = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return piHoleClient.getSummary();
-                } catch (Exception e) {
-                    return null;
-                }
-            }).orTimeout(30, TimeUnit.SECONDS);
-
-            CompletableFuture<BlockListResponse> blockListsFut = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return piHoleClient.getBlockLists();
-                } catch (Exception e) {
-                    return null;
-                }
-            }).orTimeout(30, TimeUnit.SECONDS);
-
-            CompletableFuture.allOf(nodesFut, piholeSummaryFut, blockListsFut)
-                    .orTimeout(7, TimeUnit.MINUTES)
-                    .whenComplete((ignored, err) -> {
-                        if (err != null) {
-                            hook.editOriginal("⚠️ Gagal ambil data: " + err.getMessage()).queue();
-                            return;
-                        }
-
-                        Map<String, MetricsDTO> nodes = nodesFut.getNow(Map.of());
-                        SummaryResponse s = piholeSummaryFut.getNow(null);
-                        BlockListResponse bl = blockListsFut.getNow(null);
-
-                        // 1) Kirim embed PI-HOLE terlebih dahulu
-                        EmbedBuilder piHoleEb = buildPiHoleEmbed(s, bl);
-                        hook.editOriginalEmbeds(piHoleEb.build()).queue(v -> {
-
-                            // 2) Lalu kirim embed per NODE
-                            if (nodes.isEmpty()) {
-                                hook.sendMessage("⚠️ Tidak ada data node.").queue();
-                                return;
-                            }
-
-                            var ordered = new ArrayList<>(nodes.entrySet());
-                            ordered.sort(Map.Entry.comparingByKey());
-
-                            CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
-
-                            for (int idx = 0; idx < ordered.size(); idx++) {
-                                var eNode = ordered.get(idx);
-                                String nodeName = eNode.getKey();
-                                MetricsDTO m = eNode.getValue();
-
-                                // Embed untuk node
-                                EmbedBuilder eb = buildNodeEmbed(nodeName, m);
-                                chain = chain.thenCompose(ignored2 -> MessageUtils.toCF(hook.sendMessageEmbeds(eb.build()))
-                                        .thenApply(x -> null));
-
-                                // Pagination Storage & Network (tanpa IP/MAC)
-                                List<String> diskParts = buildStoragePages(m);
-                                List<String> netParts  = buildNetworkPages(m);
-
-                                chain = chain.thenCompose(ignored2 -> sendParts(hook, diskParts, "_" + nodeName + " • No storage info_"));
-                                chain = chain.thenCompose(ignored2 -> sendParts(hook, netParts, "_" + nodeName + " • No network interface info_"));
-                            }
-
-                            chain.exceptionally(ex -> {
-                                hook.sendMessage("⚠️ Gagal kirim data: " + ex.getMessage()).queue();
-                                return null;
-                            });
-                        });
-                    });
-        });
-    }
-
-    // ================== Builders ==================
 
     private static EmbedBuilder buildPiHoleEmbed(SummaryResponse s, BlockListResponse bl) {
         EmbedBuilder eb = new EmbedBuilder()
@@ -204,7 +119,7 @@ public class HealthCommand implements SlashCommand {
         return eb;
     }
 
-    // ================== Pagination builders ==================
+    // ================== Builders ==================
 
     private static List<String> buildStoragePages(MetricsDTO m) {
         List<String> diskParts = new ArrayList<>();
@@ -251,7 +166,7 @@ public class HealthCommand implements SlashCommand {
         return MessageUtils.toCodeBlocks(netParts);
     }
 
-    // ================== Utils ==================
+    // ================== Pagination builders ==================
 
     private static CompletableFuture<Void> sendParts(net.dv8tion.jda.api.interactions.InteractionHook hook,
                                                      List<String> parts,
@@ -261,5 +176,90 @@ public class HealthCommand implements SlashCommand {
         } else {
             return MessageUtils.toCF(hook.sendMessage(emptyFallback)).thenApply(x -> null);
         }
+    }
+
+    @Override
+    public String name() {
+        return "health";
+    }
+
+    // ================== Utils ==================
+
+    @Override
+    public void handle(SlashCommandInteractionEvent event) {
+        event.deferReply()/* .setEphemeral(true) */.queue(hook -> {
+
+            // Ambil semua node paralel + Pi-hole
+            CompletableFuture<Map<String, MetricsDTO>> nodesFut = nodeMetricsService.snapshotAllAsync(true)
+                    .orTimeout(5, TimeUnit.MINUTES);
+
+            CompletableFuture<SummaryResponse> piholeSummaryFut = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return piHoleClient.getSummary();
+                } catch (Exception e) {
+                    return null;
+                }
+            }).orTimeout(30, TimeUnit.SECONDS);
+
+            CompletableFuture<BlockListResponse> blockListsFut = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return piHoleClient.getBlockLists();
+                } catch (Exception e) {
+                    return null;
+                }
+            }).orTimeout(30, TimeUnit.SECONDS);
+
+            CompletableFuture.allOf(nodesFut, piholeSummaryFut, blockListsFut)
+                    .orTimeout(7, TimeUnit.MINUTES)
+                    .whenComplete((ignored, err) -> {
+                        if (err != null) {
+                            hook.editOriginal("⚠️ Gagal ambil data: " + err.getMessage()).queue();
+                            return;
+                        }
+
+                        Map<String, MetricsDTO> nodes = nodesFut.getNow(Map.of());
+                        SummaryResponse s = piholeSummaryFut.getNow(null);
+                        BlockListResponse bl = blockListsFut.getNow(null);
+
+                        // 1) Kirim embed PI-HOLE terlebih dahulu
+                        EmbedBuilder piHoleEb = buildPiHoleEmbed(s, bl);
+                        hook.editOriginalEmbeds(piHoleEb.build()).queue(v -> {
+
+                            // 2) Lalu kirim embed per NODE
+                            if (nodes.isEmpty()) {
+                                hook.sendMessage("⚠️ Tidak ada data node.").queue();
+                                return;
+                            }
+
+                            var ordered = new ArrayList<>(nodes.entrySet());
+                            ordered.sort(Map.Entry.comparingByKey());
+
+                            CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+
+                            for (int idx = 0; idx < ordered.size(); idx++) {
+                                var eNode = ordered.get(idx);
+                                String nodeName = eNode.getKey();
+                                MetricsDTO m = eNode.getValue();
+
+                                // Embed untuk node
+                                EmbedBuilder eb = buildNodeEmbed(nodeName, m);
+                                chain = chain.thenCompose(ignored2 -> MessageUtils.toCF(hook.sendMessageEmbeds(eb.build()))
+                                        .thenApply(x -> null));
+
+                                // Pagination Storage & Network (tanpa IP/MAC)
+                                List<String> diskParts = buildStoragePages(m);
+                                List<String> netParts = buildNetworkPages(m);
+
+                                chain = chain.thenCompose(ignored2 -> sendParts(hook, diskParts, "_" + nodeName + " • No storage info_"));
+                                chain = chain.thenCompose(ignored2 -> sendParts(hook, netParts, "_" + nodeName + " • No network interface info_"));
+                            }
+
+                            chain.exceptionally(ex -> {
+                                hook.sendMessage("⚠️ Gagal kirim data: " + ex.getMessage()).queue();
+                                return null;
+                            });
+                        });
+                    });
+        });
     }
 }
