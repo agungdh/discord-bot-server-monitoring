@@ -10,7 +10,7 @@
     </parent>
     <groupId>id.my.agungdh</groupId>
     <artifactId>discord-bot-server-monitoring</artifactId>
-    <version>1.8.2</version>
+    <version>1.9</version>
     <name>discord-bot-server-monitoring</name>
     <description>discord-bot-server-monitoring</description>
     <url/>
@@ -50,11 +50,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.github.oshi</groupId>
-            <artifactId>oshi-core</artifactId>
-            <version>6.9.0</version>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>

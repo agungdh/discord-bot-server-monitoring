@@ -6,7 +6,7 @@ import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.TargetErrorDTO;
 import id.my.agungdh.discordbotservermonitoring.client.PrometheusClient;
 import id.my.agungdh.discordbotservermonitoring.service.DiscordService;
 import id.my.agungdh.discordbotservermonitoring.service.ErrorMinutesService;
-import id.my.agungdh.discordbotservermonitoring.service.MetricsService;
+import id.my.agungdh.discordbotservermonitoring.service.NodeMetricsService;
 import id.my.agungdh.discordbotservermonitoring.time.IntervalService;
 import id.my.agungdh.discordbotservermonitoring.time.PeriodDuration;
 import lombok.RequiredArgsConstructor;
@@ -18,15 +18,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
 public class MainController {
-    private final MetricsService metricsService;
+    private final NodeMetricsService nodeMetricsService;   // ⬅️ ganti pakai NodeMetricsService
     private final DiscordService discordService;
     private final IntervalService intervalService;
-    private final ErrorMinutesService errorMinutesService;   // ⬅️ inject
+    private final ErrorMinutesService errorMinutesService;
 
     @Value("${spring.application.name}")
     String name;
@@ -54,9 +55,11 @@ public class MainController {
         return name;
     }
 
+    // === GET semua node
     @GetMapping("/system")
-    public MetricsDTO system() {
-        return metricsService.snapshot(true);
+    public Map<String, MetricsDTO> system() {
+        // includeNetwork = true (sesuai /health yang menampilkan network)
+        return nodeMetricsService.snapshotAll(true);
     }
 
     // Contoh endpoint: hitung mundur interval dari sekarang
@@ -96,8 +99,6 @@ public class MainController {
         return buildSummary("two-days-ago", start, end, points);
     }
 
-    // ========================= Helpers =========================
-
     // 1 minggu terakhir: H-7 00:00 → sekarang
     @GetMapping("/errors/last-week")
     public ErrorMinutesSummaryDTO errorsLastWeekUntilNow() {
@@ -117,7 +118,6 @@ public class MainController {
     }
 
     // Generic: sejak interval dinamis (pakai IntervalService), contoh: /errors/since?n=7d
-    // Artinya: start = (now - n) dibulatkan ke 00:00 lokal, end = now
     @GetMapping("/errors/since")
     public ErrorMinutesSummaryDTO errorsSince(@RequestParam(name = "n") String n) {
         PeriodDuration pd = intervalService.parseInterval(n);
@@ -126,7 +126,6 @@ public class MainController {
         Instant start = thenZ.toInstant();
         Instant end = nowZ.toInstant();
 
-        // langsung reuse service yang existing
         var points = fetchByAbsoluteRange(start, end);
         return buildSummary("since-" + pd.toIsoString(), start, end, points);
     }
@@ -164,15 +163,11 @@ public class MainController {
     }
 
     private List<PrometheusClient.ResultPoint> fetchByAbsoluteRange(Instant start, Instant end) {
-        // Pakai metode private dari service yang existing via wrapper “sementara”.
-        // Atau kamu bisa expose method publik di ErrorMinutesService untuk range arbitrary.
-        // Di sini aku panggil langsung promQL builder yang sama lewat helper kecil:
         return errorMinutesServiceErrorRange(start, end);
     }
 
     // --- Wrapper kecil karena ErrorMinutesService tidak expose method "by range" publik ---
     private List<PrometheusClient.ResultPoint> errorMinutesServiceErrorRange(Instant start, Instant end) {
-        // Trik sederhana: tambahkan method public di ErrorMinutesService kalau mau lebih bersih.
         try {
             var m = ErrorMinutesService.class.getDeclaredMethod("queryErrorMinutes", Instant.class, Instant.class);
             m.setAccessible(true);
