@@ -66,9 +66,9 @@ public class NodeMetricsService {
         long swapUsed  = Math.max(0, swapTotal - swapFree);
         double swapPct = swapTotal == 0 ? 0 : (swapUsed * 100.0 / swapTotal);
 
-        // Disks & Networks
-        List<StorageDTO> disks = buildDisks(idx2);
-        List<NetworkDTO> nets  = includeNetwork ? buildNetworks(idx2) : List.of();
+        // Disks & Networks (pakai toggle dari props)
+        List<StorageDTO> disks = buildDisks(idx2, props.isIncludeSpecialFilesystems());
+        List<NetworkDTO> nets  = includeNetwork ? buildNetworks(idx2, props.isIncludeVirtualIfaces()) : List.of();
 
         return new MetricsDTO(
                 Instant.now(),
@@ -173,20 +173,25 @@ public class NodeMetricsService {
 
     // ========= Storage & Network =========
 
-    private static List<StorageDTO> buildDisks(Index idx) {
-        // Filter tmpfs/overlay/proc/sys/run
+    private static List<StorageDTO> buildDisks(Index idx, boolean includeSpecialFs) {
+        // Kalau includeSpecialFs = true => tampilkan SEMUA filesystem, termasuk tmpfs/overlay/proc/sys/run/zram.
+        // Kalau false => pakai filter “normal” seperti versi sebelumnya.
+        java.util.function.Predicate<Map<String,String>> filter = lab -> true;
+        if (!includeSpecialFs) {
+            filter = lab -> !lab.getOrDefault("fstype","").matches("^(tmpfs|overlay)$")
+                    && !lab.getOrDefault("mountpoint","").matches("^/(proc|sys|run)($|/).*");
+        }
+
         var sizes = idx.mapFirstValues(
                 "node_filesystem_size_bytes",
                 Map.of(), "device","mountpoint","fstype",
-                lab -> !lab.getOrDefault("fstype","").matches("^(tmpfs|overlay)$") &&
-                        !lab.getOrDefault("mountpoint","").matches("^/(proc|sys|run)($|/).*")
+                filter
         );
 
         var avails = idx.mapFirstValues(
                 "node_filesystem_avail_bytes",
                 Map.of(), "device","mountpoint","fstype",
-                lab -> !lab.getOrDefault("fstype","").matches("^(tmpfs|overlay)$") &&
-                        !lab.getOrDefault("mountpoint","").matches("^/(proc|sys|run)($|/).*")
+                filter
         );
 
         List<StorageDTO> out = new ArrayList<>();
@@ -198,15 +203,23 @@ public class NodeMetricsService {
             String name = e.getKey().mountpoint().isBlank() ? e.getKey().device() : e.getKey().mountpoint();
             out.add(new StorageDTO(name, e.getKey().fstype(), total, usable, round2(pct)));
         }
+        // Tambahan: kalau ada zram yang tidak punya size/avail lengkap di momen tertentu, dia mungkin tidak muncul.
+        // Tapi umumnya node_exporter publish keduanya → aman.
+
         out.sort(Comparator.comparing(StorageDTO::name));
         return out;
     }
 
-    private static List<NetworkDTO> buildNetworks(Index idx) {
-        var rx = idx.mapFirstValuesByDevice("node_network_receive_bytes_total",
-                dev -> !dev.matches("^(lo|veth.*|docker.*|br-.*)$"));
-        var tx = idx.mapFirstValuesByDevice("node_network_transmit_bytes_total",
-                dev -> !dev.matches("^(lo|veth.*|docker.*|br-.*)$"));
+    private static List<NetworkDTO> buildNetworks(Index idx, boolean includeVirtualIfaces) {
+        // Kalau includeVirtualIfaces = true => tampilkan SEMUA device (termasuk lo, veth*, docker*, br-*, dll).
+        // Kalau false => hide seperti sebelumnya.
+        java.util.function.Predicate<String> allow = dev -> true;
+        if (!includeVirtualIfaces) {
+            allow = dev -> !dev.matches("^(lo|veth.*|docker.*|br-.*)$");
+        }
+
+        var rx = idx.mapFirstValuesByDevice("node_network_receive_bytes_total", allow);
+        var tx = idx.mapFirstValuesByDevice("node_network_transmit_bytes_total", allow);
 
         Set<String> devs = new TreeSet<>();
         devs.addAll(rx.keySet());
@@ -216,7 +229,7 @@ public class NodeMetricsService {
         for (String d : devs) {
             out.add(new NetworkDTO(
                     d,
-                    "", "", "", // MAC/IP tidak tersedia dari node_exporter
+                    "", "", "", // node_exporter tidak expose MAC/IP → biarkan kosong
                     rx.getOrDefault(d, 0L),
                     tx.getOrDefault(d, 0L)
             ));

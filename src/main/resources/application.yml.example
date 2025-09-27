@@ -21,6 +21,9 @@ waha:
   jp-holiday-reminder:
     phones: "62zz,62aa"
 monitoring:
+  cpuSampleMillis: 300
+  includeVirtualIfaces: true          # ← tampilkan veth/docker/br/lo
+  includeSpecialFilesystems: true     # ← tampilkan tmpfs/overlay/proc/sys/run/zram
   nodes:
     - name: arm1
       url: http://xx.yy.zz.1:9100

@@ -68,31 +68,22 @@ public class HealthCommand implements SlashCommand {
                         }
 
                         Map<String, MetricsDTO> nodes = nodesFut.getNow(Map.of());
-                        if (nodes.isEmpty()) {
-                            hook.editOriginal("⚠️ Gagal ambil metrik node.").queue();
-                            return;
-                        }
-
                         SummaryResponse s = piholeSummaryFut.getNow(null);
                         BlockListResponse bl = blockListsFut.getNow(null);
 
-                        // Urutkan by key agar deterministik
-                        List<Map.Entry<String, MetricsDTO>> ordered = new ArrayList<>(nodes.entrySet());
-                        ordered.sort(Map.Entry.comparingByKey());
+                        // 1) Kirim embed PI-HOLE terlebih dahulu
+                        EmbedBuilder piHoleEb = buildPiHoleEmbed(s, bl);
+                        hook.editOriginalEmbeds(piHoleEb.build()).queue(v -> {
 
-                        // Kirim embed per node (node pertama: tambahkan Pi-hole section jika ada)
-                        boolean isFirst = true;
+                            // 2) Lalu kirim embed per NODE
+                            if (nodes.isEmpty()) {
+                                hook.sendMessage("⚠️ Tidak ada data node.").queue();
+                                return;
+                            }
 
-                        // bangun embed pertama dan edit original
-                        var firstEntry = ordered.get(0);
-                        EmbedBuilder firstEb = buildNodeEmbed(firstEntry.getKey(), firstEntry.getValue());
+                            var ordered = new ArrayList<>(nodes.entrySet());
+                            ordered.sort(Map.Entry.comparingByKey());
 
-                        if (s != null) {
-                            appendPiHoleSection(firstEb, s, bl);
-                        }
-
-                        hook.editOriginalEmbeds(firstEb.build()).queue(v -> {
-                            // kirim node lain + pagination storage/network untuk semua node
                             CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
 
                             for (int idx = 0; idx < ordered.size(); idx++) {
@@ -100,21 +91,17 @@ public class HealthCommand implements SlashCommand {
                                 String nodeName = eNode.getKey();
                                 MetricsDTO m = eNode.getValue();
 
+                                // Embed untuk node
+                                EmbedBuilder eb = buildNodeEmbed(nodeName, m);
+                                chain = chain.thenCompose(ignored2 -> MessageUtils.toCF(hook.sendMessageEmbeds(eb.build()))
+                                        .thenApply(x -> null));
+
+                                // Pagination Storage & Network
                                 List<String> diskParts = buildStoragePages(m);
                                 List<String> netParts  = buildNetworkPages(m);
 
-                                if (idx == 0) {
-                                    // node pertama: embed sudah dikirim via editOriginal
-                                    chain = chain.thenCompose(ignored2 -> sendParts(hook, diskParts, "_" + nodeName + " • No storage info_"));
-                                    chain = chain.thenCompose(ignored2 -> sendParts(hook, netParts, "_" + nodeName + " • No network interface info_"));
-                                } else {
-                                    // node lain: kirim embed + parts
-                                    EmbedBuilder eb = buildNodeEmbed(nodeName, m);
-                                    chain = chain.thenCompose(ignored2 -> MessageUtils.toCF(hook.sendMessageEmbeds(eb.build()))
-                                            .thenApply(x -> null));
-                                    chain = chain.thenCompose(ignored2 -> sendParts(hook, diskParts, "_" + nodeName + " • No storage info_"));
-                                    chain = chain.thenCompose(ignored2 -> sendParts(hook, netParts, "_" + nodeName + " • No network interface info_"));
-                                }
+                                chain = chain.thenCompose(ignored2 -> sendParts(hook, diskParts, "_" + nodeName + " • No storage info_"));
+                                chain = chain.thenCompose(ignored2 -> sendParts(hook, netParts, "_" + nodeName + " • No network interface info_"));
                             }
 
                             chain.exceptionally(ex -> {
@@ -124,6 +111,57 @@ public class HealthCommand implements SlashCommand {
                         });
                     });
         });
+    }
+
+    // ================== Builders ==================
+
+    private static EmbedBuilder buildPiHoleEmbed(SummaryResponse s, BlockListResponse bl) {
+        EmbedBuilder eb = new EmbedBuilder()
+                .setTitle("🕳️ Pi-hole")
+                .setColor(new Color(34, 197, 94))
+                .setTimestamp(Instant.now());
+
+        if (s != null && s.clients() != null && s.queries() != null) {
+            int active = s.clients().active();
+            int totalClients = s.clients().total();
+            long totalQ = s.queries().total();
+            long blockedQ = s.queries().blocked();
+            double pctBlocked = s.queries().percent_blocked();
+
+            eb.addField("Clients",
+                    "Active: `" + active + "`\n" +
+                            "Total: `" + totalClients + "`",
+                    true);
+
+            eb.addField("DNS Queries",
+                    "Total: `" + totalQ + "`\n" +
+                            "Blocked: `" + blockedQ + "` (" + MessageUtils.round2(pctBlocked) + "%)",
+                    true);
+
+            if (s.gravity() != null) {
+                long epoch = s.gravity().last_update();
+                String relative = "<t:" + epoch + ":R>";
+                eb.addField("Gravity",
+                        "Domains blocked: `" + s.gravity().domains_being_blocked() + "`\n" +
+                                "Last update: " + relative,
+                        false);
+            }
+        } else {
+            eb.addField("Summary", "_unavailable_", false);
+        }
+
+        if (bl != null && bl.lists() != null && !bl.lists().isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (var item : bl.lists()) {
+                String updRel = "<t:" + item.date_updated() + ":R>";
+                sb.append("• ").append(MessageUtils.safe(item.address()))
+                        .append(" → `").append(item.number()).append("` entries")
+                        .append(" (upd ").append(updRel).append(")\n");
+            }
+            eb.addField("Block Lists", sb.toString(), false);
+        }
+
+        return eb;
     }
 
     private static EmbedBuilder buildNodeEmbed(String nodeName, MetricsDTO m) {
@@ -165,6 +203,8 @@ public class HealthCommand implements SlashCommand {
 
         return eb;
     }
+
+    // ================== Pagination builders ==================
 
     private static List<String> buildStoragePages(MetricsDTO m) {
         List<String> diskParts = new ArrayList<>();
@@ -213,6 +253,8 @@ public class HealthCommand implements SlashCommand {
         return MessageUtils.toCodeBlocks(netParts);
     }
 
+    // ================== Utils ==================
+
     private static CompletableFuture<Void> sendParts(net.dv8tion.jda.api.interactions.InteractionHook hook,
                                                      List<String> parts,
                                                      String emptyFallback) {
@@ -220,50 +262,6 @@ public class HealthCommand implements SlashCommand {
             return MessageUtils.sendSequentially(hook, parts);
         } else {
             return MessageUtils.toCF(hook.sendMessage(emptyFallback)).thenApply(x -> null);
-        }
-    }
-
-    private static void appendPiHoleSection(EmbedBuilder eb, SummaryResponse s, BlockListResponse bl) {
-        if (s != null && s.clients() != null && s.queries() != null) {
-            int active = s.clients().active();
-            int totalClients = s.clients().total();
-            long totalQ = s.queries().total();
-            long blockedQ = s.queries().blocked();
-            double pctBlocked = s.queries().percent_blocked();
-
-            eb.addBlankField(false);
-            eb.addField("Pi-hole Clients",
-                    "Active: `" + active + "`\n" +
-                            "Total: `" + totalClients + "`",
-                    true);
-
-            eb.addField("DNS Queries",
-                    "Total: `" + totalQ + "`\n" +
-                            "Blocked: `" + blockedQ + "` (" + MessageUtils.round2(pctBlocked) + "%)",
-                    true);
-
-            if (s.gravity() != null) {
-                long epoch = s.gravity().last_update();
-                String relative = "<t:" + epoch + ":R>";
-                eb.addField("Gravity",
-                        "Domains blocked: `" + s.gravity().domains_being_blocked() + "`\n" +
-                                "Last update: " + relative,
-                        false);
-            }
-        } else {
-            eb.addBlankField(false);
-            eb.addField("Pi-hole", "_unavailable_", false);
-        }
-
-        if (bl != null && bl.lists() != null && !bl.lists().isEmpty()) {
-            StringBuilder sb = new StringBuilder();
-            for (var item : bl.lists()) {
-                String updRel = "<t:" + item.date_updated() + ":R>";
-                sb.append("• ").append(MessageUtils.safe(item.address()))
-                        .append(" → `").append(item.number()).append("` entries")
-                        .append(" (upd ").append(updRel).append(")\n");
-            }
-            eb.addField("Block Lists", sb.toString(), false);
         }
     }
 }

@@ -1,4 +1,3 @@
-// config/MonitoringProps.java
 package id.my.agungdh.discordbotservermonitoring.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -17,7 +16,21 @@ public class MonitoringProps {
         public String getUrl() { return url; }
         public void setUrl(String url) { this.url = url; }
     }
+
     private List<Node> nodes = List.of();
+
+    // NEW: tampilkan interface virtual (veth/docker/br/lo) — default true (semua tampil)
+    private boolean includeVirtualIfaces = true;
+
+    // NEW: tampilkan filesystem “special” (tmpfs/overlay/proc/sys/run/zram) — default true (semua tampil)
+    private boolean includeSpecialFilesystems = true;
+
     public List<Node> getNodes() { return nodes; }
     public void setNodes(List<Node> nodes) { this.nodes = nodes; }
+
+    public boolean isIncludeVirtualIfaces() { return includeVirtualIfaces; }
+    public void setIncludeVirtualIfaces(boolean includeVirtualIfaces) { this.includeVirtualIfaces = includeVirtualIfaces; }
+
+    public boolean isIncludeSpecialFilesystems() { return includeSpecialFilesystems; }
+    public void setIncludeSpecialFilesystems(boolean includeSpecialFilesystems) { this.includeSpecialFilesystems = includeSpecialFilesystems; }
 }
