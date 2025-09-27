@@ -96,7 +96,7 @@ public class HealthCommand implements SlashCommand {
                                 chain = chain.thenCompose(ignored2 -> MessageUtils.toCF(hook.sendMessageEmbeds(eb.build()))
                                         .thenApply(x -> null));
 
-                                // Pagination Storage & Network
+                                // Pagination Storage & Network (tanpa IP/MAC)
                                 List<String> diskParts = buildStoragePages(m);
                                 List<String> netParts  = buildNetworkPages(m);
 
@@ -229,6 +229,7 @@ public class HealthCommand implements SlashCommand {
         return MessageUtils.toCodeBlocks(diskParts);
     }
 
+    // >>> NO IP/MAC EXPOSED <<<
     private static List<String> buildNetworkPages(MetricsDTO m) {
         List<String> netParts = new ArrayList<>();
         if (m.networks() != null && !m.networks().isEmpty()) {
@@ -236,14 +237,11 @@ public class HealthCommand implements SlashCommand {
             all.append("**Network Interfaces (all)**\n\n");
             int i = 1;
             for (var nif : m.networks()) {
-                String ipv4 = (nif.ipv4() == null || nif.ipv4().isBlank()) ? "-" : nif.ipv4();
-                String ipv6 = (nif.ipv6() == null || nif.ipv6().isBlank()) ? "-" : nif.ipv6();
                 all.append(String.format(
                         Locale.US,
-                        "%d) `%s` • %s\nIPv4: %s | IPv6: %s\n↓ %s • ↑ %s\n\n",
+                        "%d) `%s`\n↓ %s • ↑ %s\n\n",
                         i++,
-                        MessageUtils.safe(nif.name()), MessageUtils.safe(nif.mac()),
-                        ipv4, ipv6,
+                        MessageUtils.safe(nif.name()),
                         MessageUtils.humanBytes(nif.bytesRecv()),
                         MessageUtils.humanBytes(nif.bytesSent())
                 ));
