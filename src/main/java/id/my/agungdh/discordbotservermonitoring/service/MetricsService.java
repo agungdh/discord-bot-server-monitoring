@@ -1,4 +1,4 @@
-// service/MetricsService.java (adapter)
+// service/MetricsService.java
 package id.my.agungdh.discordbotservermonitoring.service;
 
 import id.my.agungdh.discordbotservermonitoring.DTO.monitoring.MetricsDTO;
@@ -19,20 +19,17 @@ public class MetricsService {
         this.props = props;
     }
 
-    // Ambil node pertama sebagai default (drop-in replacement)
     public MetricsDTO snapshot(boolean includeNetwork) {
         if (props.getNodes().isEmpty())
             throw new IllegalStateException("monitoring.nodes kosong");
         var n = props.getNodes().get(0);
-        return nodeSvc.snapshotFromUrl(n.getName() != null ? n.getName() : n.getUrl(), n.getUrl(), includeNetwork);
+        String key = (n.getName() != null && !n.getName().isBlank()) ? n.getName() : n.getUrl();
+        return nodeSvc.snapshotFromUrl(key, n.getUrl(), includeNetwork);
     }
 
     @Async("commandExecutor")
     public CompletableFuture<MetricsDTO> snapshotAsync(boolean includeNetwork) {
-        try {
-            return CompletableFuture.completedFuture(snapshot(includeNetwork));
-        } catch (Exception e) {
-            return CompletableFuture.failedFuture(e);
-        }
+        try { return CompletableFuture.completedFuture(snapshot(includeNetwork)); }
+        catch (Exception e) { return CompletableFuture.failedFuture(e); }
     }
 }
