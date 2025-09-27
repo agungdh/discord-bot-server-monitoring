@@ -20,3 +20,9 @@ waha:
     phones: "62xx,62yy"
   jp-holiday-reminder:
     phones: "62zz,62aa"
+monitoring:
+  nodes:
+    - name: arm1
+      url: http://xx.yy.zz.1:9100
+    - name: arm2
+      url: http://xx.yy.zz.2:9100
