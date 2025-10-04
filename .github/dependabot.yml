@@ -3,7 +3,4 @@ updates:
   - package-ecosystem: "maven"
     directory: "/"
     schedule:
-      interval: "weekly"
-    ignore:
-      - dependency-name: "*"
-        versions: [".*PREVIEW.*", ".*RC.*", ".*M.*"]
+      interval: "daily"
