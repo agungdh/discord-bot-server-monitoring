@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 public class IntervalService {
 
     // pola: <angka><spasi optional><unit>
-    private static final Pattern TOKEN = Pattern.compile("(\\d+)\\s*([a-zA-Z]+)");
+    private static final Pattern TOKEN = Pattern.compile("(\\d++)\\s*+([a-zA-Z]++)");
 
     /**
      * Parse string interval Indonesia → PeriodDuration (Y/M/D + H/M/S)
