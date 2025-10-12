@@ -45,11 +45,11 @@ public class JapanHolidayReminder {
     }
 
     /**
-     * Jalan jam 06:00, 09:00, 12:00, dan 15:00 WIB (Senin–Jumat).
-     * - H-1: SKIP kalau besok adalah Sabtu/Minggu.
-     * - Hari H: kirim normal (scheduler hanya jalan di weekdays).
+     * Jalan jam 06:00, 09:00, 12:00, dan 15:00 WIB SETIAP HARI.
+     * - H-1: kirim kalau BESOK adalah weekday (Mon–Fri). → Minggu → Senin tetap terkirim.
+     * - Hari-H: kirim hanya kalau HARI INI weekday (Mon–Fri) agar tidak spam di weekend.
      */
-    @Scheduled(cron = "0 0 6,9,12,15 * * 1-5", zone = "Asia/Jakarta")
+    @Scheduled(cron = "0 0 6,9,12,15 * * *", zone = "Asia/Jakarta")
     public void dailyJapanHolidayChecks() {
         if (phones.isEmpty()) {
             log.warn("[JapanHolidayReminder] SKIP: waha.jp-holiday-reminder.phones kosong/belum di-set");
@@ -59,10 +59,11 @@ public class JapanHolidayReminder {
         LocalDate today = LocalDate.now(LOCAL_ZONE);
         LocalDate tomorrow = today.plusDays(1);
 
-        // H-1 — skip kalau besok weekend
-        DayOfWeek dowTomorrow = tomorrow.getDayOfWeek();
-        boolean isTomorrowWeekend = (dowTomorrow == DayOfWeek.SATURDAY || dowTomorrow == DayOfWeek.SUNDAY);
-        if (!isTomorrowWeekend) {
+        boolean todayWeekend = isWeekend(today);
+        boolean tomorrowWeekend = isWeekend(tomorrow);
+
+        // H-1: kirim jika BESOK weekday (Minggu → Senin akan mengirim)
+        if (!tomorrowWeekend) {
             holidayService.getHoliday(tomorrow).ifPresent(h -> {
                 String msg = buildHMinusOneMessage(h);
                 queue.enqueueAll(phones, msg);
@@ -70,19 +71,28 @@ public class JapanHolidayReminder {
                         h.name(), h.date().format(DATE_FMT), phones.size());
             });
         } else {
-            log.info("[JapanHolidayReminder] SKIP H-1 karena besok weekend ({})", dowTomorrow);
+            log.debug("[JapanHolidayReminder] SKIP H-1 karena besok weekend ({})", tomorrow.getDayOfWeek());
         }
 
-        // Hari-H (scheduler weekdays, jadi today sudah pasti Mon–Fri)
-        holidayService.getHoliday(today).ifPresent(h -> {
-            String msg = buildTodayMessage(h);
-            queue.enqueueAll(phones, msg);
-            log.info("[JapanHolidayReminder] Enqueued DAY-OF for {} ({}) -> {} recipients",
-                    h.name(), h.date().format(DATE_FMT), phones.size());
-        });
+        // Hari-H: kirim hanya kalau HARI INI weekday
+        if (!todayWeekend) {
+            holidayService.getHoliday(today).ifPresent(h -> {
+                String msg = buildTodayMessage(h);
+                queue.enqueueAll(phones, msg);
+                log.info("[JapanHolidayReminder] Enqueued DAY-OF for {} ({}) -> {} recipients",
+                        h.name(), h.date().format(DATE_FMT), phones.size());
+            });
+        } else {
+            log.debug("[JapanHolidayReminder] SKIP Day-Of karena hari ini weekend ({})", today.getDayOfWeek());
+        }
     }
 
     /* ================= Helpers ================= */
+
+    private static boolean isWeekend(LocalDate d) {
+        DayOfWeek w = d.getDayOfWeek();
+        return w == DayOfWeek.SATURDAY || w == DayOfWeek.SUNDAY;
+    }
 
     private String buildHMinusOneMessage(Holiday h) {
         return "Reminder H-1 🇯🇵\n"
