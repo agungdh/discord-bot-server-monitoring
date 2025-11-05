@@ -23,6 +23,12 @@ waha:
     phones: "62xx,62yy"
   jp-holiday-reminder:
     phones: "62zz,62aa"
+
+  # === Absen reminder tiap 1 menit ===
+  absen-reminder:
+    enabled: true                 # set ke false kalau mau dimatiin
+    phones: "62xx,62yy"           # nomor pacar / target reminder
+    cron: "0 * * * * *"           # tiap 1 menit (detik=0)
 monitoring:
   cpuSampleMillis: 300
   includeVirtualIfaces: true          # ← tampilkan veth/docker/br/lo
